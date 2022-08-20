@@ -1,15 +1,23 @@
 module Main exposing (..)
 
+--(height, src, style, width)
+
 import Browser
 import Browser.Events exposing (onAnimationFrameDelta)
 import Html exposing (div, img, text)
-import Html.Attributes exposing (height, src, style, width)
+import Html.Attributes exposing (..)
 import Keyboard exposing (Key(..))
 import Keyboard.Arrows
 
 
 type alias Sprite =
-    { x : Int, y : Int, w : Int, h : Int, frames : Int, currentFrame : Int }
+    { x : Float
+    , y : Float
+    , w : Float
+    , h : Float
+    , frames : Float
+    , currentFrame : Float
+    }
 
 
 getSprite x y w h f =
@@ -21,15 +29,24 @@ type alias Cords =
 
 
 type alias Player =
-    { location : Cords, direction : Cords, sprite : Sprite }
+    { location : Cords
+    , direction : Cords
+    , sprite : Sprite
+    }
 
 
 type alias Bullet =
-    { location : Cords, direction : Cords, distance : Float }
+    { location : Cords
+    , direction : Cords
+    , distance : Float
+    , sprite : Sprite
+    }
 
 
 type alias Enemy =
-    { location : Cords }
+    { location : Cords
+    , sprite : Sprite
+    }
 
 
 type alias Model =
@@ -41,6 +58,110 @@ type alias Model =
     }
 
 
+skull =
+    getSprite 288 320 16 16 1
+
+
+elf_f_idle_anim =
+    getSprite 128 4 16 28 4
+
+
+elf_f_run_anim =
+    getSprite 192 4 16 28 4
+
+
+elf_f_hit_anim =
+    getSprite 256 4 16 28 1
+
+
+elf_m_idle_anim =
+    getSprite 128 36 16 28 4
+
+
+elf_m_run_anim =
+    getSprite 192 36 16 28 4
+
+
+elf_m_hit_anim =
+    getSprite 256 36 16 28 1
+
+
+knight_f_idle_anim =
+    getSprite 128 68 16 28 4
+
+
+knight_f_run_anim =
+    getSprite 192 68 16 28 4
+
+
+knight_f_hit_anim =
+    getSprite 256 68 16 28 1
+
+
+knight_m_idle_anim =
+    getSprite 128 100 16 28 4
+
+
+knight_m_run_anim =
+    getSprite 192 100 16 28 4
+
+
+knight_m_hit_anim =
+    getSprite 256 100 16 28 1
+
+
+wizzard_f_idle_anim =
+    getSprite 128 132 16 28 4
+
+
+wizzard_f_run_anim =
+    getSprite 192 132 16 28 4
+
+
+wizzard_f_hit_anim =
+    getSprite 256 132 16 28 1
+
+
+wizzard_m_idle_anim =
+    getSprite 128 164 16 28 4
+
+
+wizzard_m_run_anim =
+    getSprite 192 164 16 28 4
+
+
+wizzard_m_hit_anim =
+    getSprite 256 164 16 28 1
+
+
+lizard_f_idle_anim =
+    getSprite 128 196 16 28 4
+
+
+lizard_f_run_anim =
+    getSprite 192 196 16 28 4
+
+
+lizard_f_hit_anim =
+    getSprite 256 196 16 28 1
+
+
+lizard_m_idle_anim =
+    getSprite 128 228 16 28 4
+
+
+lizard_m_run_anim =
+    getSprite 192 228 16 28 4
+
+
+lizard_m_hit_anim =
+    getSprite 256 228 16 28 1
+
+
+scaleFactor =
+    4
+
+
 init _ =
     ( { count = 1
       , pressedKeys = []
@@ -49,10 +170,13 @@ init _ =
             , direction = ( 1, 0 )
             , sprite =
                 --getSprite 368 16 16 16 4
-                getSprite 368 204 16 20 4
+                wizzard_f_run_anim
             }
       , bullets = []
-      , enemies = []
+      , enemies =
+            [ { location = ( 100, 100 ), sprite = lizard_m_idle_anim }
+            , { location = ( 300, 300 ), sprite = knight_m_idle_anim }
+            ]
       }
     , Cmd.none
     )
@@ -123,6 +247,7 @@ handleBullets model =
                     { location = model.player.location
                     , direction = model.player.direction
                     , distance = 0
+                    , sprite = skull
                     }
                         :: model.bullets
 
@@ -153,6 +278,38 @@ setLastDirection oldDirection pressedKeys =
         dir
 
 
+type alias BoundingBox =
+    { x : Float
+    , y : Float
+    , w : Float
+    , h : Float
+    }
+
+
+getBoundingBox ( x, y ) width height =
+    { x = x
+    , y = y
+    , w = width * scaleFactor
+    , h = height * scaleFactor
+    }
+
+
+itCollides : BoundingBox -> BoundingBox -> Bool
+itCollides b1 b2 =
+    b1.x
+        < b2.x
+        + b2.w
+        && b1.x
+        + b1.w
+        > b2.x
+        && b1.y
+        < b2.y
+        + b2.h
+        && b1.h
+        + b1.y
+        > b2.y
+
+
 handleSprite : Sprite -> Float -> Sprite
 handleSprite sprite count =
     let
@@ -176,6 +333,51 @@ handleSprite sprite count =
         sprite
 
 
+checkBullets : Enemy -> List Bullet -> Bool
+checkBullets en bullets =
+    List.foldl
+        (\b acc ->
+            let
+                b1 =
+                    getBoundingBox b.location b.sprite.w b.sprite.h
+
+                b2 =
+                    getBoundingBox en.location en.sprite.w en.sprite.h
+            in
+            if acc then
+                True
+
+            else
+                itCollides b1 b2
+        )
+        False
+        bullets
+
+
+handleEnemies : Model -> List Enemy
+handleEnemies model =
+    let
+        removeDead =
+            List.foldl
+                (\e acc ->
+                    if checkBullets e model.bullets then
+                        acc
+
+                    else
+                        e :: acc
+                )
+                []
+                model.enemies
+    in
+    List.map
+        (\en ->
+            { en
+                | sprite = handleSprite en.sprite model.count
+            }
+        )
+        removeDead
+
+
 tick : Model -> Float -> Model
 tick model delta =
     { model
@@ -186,6 +388,8 @@ tick model delta =
             , sprite = handleSprite model.player.sprite model.count
             }
         , bullets = handleBullets model
+        , enemies =
+            handleEnemies model
     }
 
 
@@ -228,7 +432,7 @@ cssCircle =
     ]
 
 
-cssPosition x y =
+cssPosition ( x, y ) =
     [ style "position" "absolute"
     , style "left" <| String.fromFloat x
     , style "top" <| String.fromFloat y
@@ -238,11 +442,7 @@ cssPosition x y =
 drawbullets bullets =
     List.map
         (\i ->
-            let
-                ( bx, by ) =
-                    i.location
-            in
-            div (cssCircle ++ cssPosition bx by) []
+            div (viewSprite i.sprite i.direction ++ cssPosition i.location) []
         )
         bullets
 
@@ -256,52 +456,47 @@ setBackgroundPosition sprite =
         xloc =
             sprite.x + sprite.currentFrame * sprite.w
     in
-    String.fromInt (xloc * -1)
+    String.fromFloat (xloc * -1)
         ++ "px "
-        ++ String.fromInt (yloc * -1)
+        ++ String.fromFloat (yloc * -1)
         ++ "px"
 
 
-view model =
+viewSprite sprite ( xdir, _ ) =
     let
-        ( xdir, _ ) =
-            model.player.direction
-
         spriteDirection =
             if xdir == 0 then
                 String.fromFloat 1
 
             else
                 String.fromFloat xdir
+    in
+    [ style "background" "url(src/0x72_DungeonTilesetII_v1.4.png) no-repeat"
+    , style "width" <| String.fromFloat sprite.w
+    , style "height" <| String.fromFloat sprite.h
+    , style "background-position" <| setBackgroundPosition sprite
+    , style "transform" ("scale(4) scaleX(" ++ spriteDirection ++ ")")
+    ]
 
-        ( px, py ) =
-            model.player.location
 
-        sprite =
-            getSprite 368 16 16 16 4
+view model =
+    let
+        playerSprite =
+            viewSprite model.player.sprite model.player.direction
+
+        playerPosition =
+            cssPosition model.player.location
     in
     div []
-        ([ div
-            ([ style "background" "url(src/0x72_DungeonTilesetII_v1.4.png) no-repeat"
-             , style "width" <| String.fromInt model.player.sprite.w
-             , style "height" <| String.fromInt model.player.sprite.h
-             , style "background-position" <| setBackgroundPosition model.player.sprite
-             , style "transform" ("scale(4) scaleX(" ++ spriteDirection ++ ")")
-             ]
-                ++ cssPosition px py
-            )
-            []
-
-         --, img
-         --   [ src tilesheet
-         --   , style "clip-path" "inset(20px 20px)"
-         --   ]
-         --   []
+        ([ div (playerSprite ++ playerPosition) [] --, img
          , div [] [ text ("fps: " ++ String.fromFloat model.count) ]
-
-         --, img ([ src testImage, width 100, height 100 ] ++ cssPosition px py) []
          ]
             ++ drawbullets model.bullets
+            ++ List.map
+                (\en ->
+                    div (viewSprite en.sprite ( 1, 0 ) ++ cssPosition en.location) []
+                )
+                model.enemies
         )
 
 
