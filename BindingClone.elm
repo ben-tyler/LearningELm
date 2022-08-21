@@ -1,13 +1,12 @@
 module Main exposing (..)
 
---(height, src, style, width)
-
 import Browser
 import Browser.Events exposing (onAnimationFrameDelta)
 import Html exposing (div, img, text)
-import Html.Attributes exposing (..)
+import Html.Attributes exposing (height, src, style, width)
 import Keyboard exposing (Key(..))
 import Keyboard.Arrows
+import Random
 
 
 type alias Sprite =
@@ -21,7 +20,13 @@ type alias Sprite =
 
 
 getSprite x y w h f =
-    { x = x, y = y, w = w, h = h, frames = f, currentFrame = 1 }
+    { x = x
+    , y = y
+    , w = w
+    , h = h
+    , frames = f
+    , currentFrame = 1
+    }
 
 
 type alias Cords =
@@ -32,6 +37,7 @@ type alias Player =
     { location : Cords
     , direction : Cords
     , sprite : Sprite
+    , dead : Bool
     }
 
 
@@ -51,11 +57,32 @@ type alias Enemy =
 
 type alias Model =
     { count : Float
+    , fps : Float
     , pressedKeys : List Keyboard.Key
     , player : Player
     , bullets : List Bullet
     , enemies : List Enemy
     }
+
+
+floor_1 =
+    getSprite 16 64 16 16 1
+
+
+floor_2 =
+    getSprite 32 64 16 16 1
+
+
+floor_3 =
+    getSprite 48 64 16 16 1
+
+
+floor_4 =
+    getSprite 16 80 16 16 1
+
+
+floor_5 =
+    getSprite 32 80 16 16 1
 
 
 skull =
@@ -159,11 +186,12 @@ lizard_m_hit_anim =
 
 
 scaleFactor =
-    4
+    3
 
 
 init _ =
     ( { count = 1
+      , fps = 0
       , pressedKeys = []
       , player =
             { location = ( 200, 200 )
@@ -171,6 +199,7 @@ init _ =
             , sprite =
                 --getSprite 368 16 16 16 4
                 wizzard_f_run_anim
+            , dead = False
             }
       , bullets = []
       , enemies =
@@ -354,6 +383,14 @@ checkBullets en bullets =
         bullets
 
 
+type MyMsg
+    = Rand Int
+
+
+genRoll =
+    Random.generate Rand (Random.int -1 1)
+
+
 handleEnemies : Model -> List Enemy
 handleEnemies model =
     let
@@ -368,28 +405,108 @@ handleEnemies model =
                 )
                 []
                 model.enemies
+
+        updateSprite =
+            List.map
+                (\en ->
+                    { en
+                        | sprite = handleSprite en.sprite model.count
+                    }
+                )
+                removeDead
+
+        doWalk =
+            List.map
+                (\en ->
+                    let
+                        ( x, y ) =
+                            en.location
+
+                        ( rdx, rdy ) =
+                            if
+                                x
+                                    > 600
+                                    || y
+                                    > 600
+                                    || x
+                                    < 0
+                                    || y
+                                    < 0
+                            then
+                                ( 0, 0 )
+
+                            else
+                                model.player.direction
+                    in
+                    { en
+                        | location = ( x + rdx, y + rdy )
+                    }
+                )
+                updateSprite
+
+        newEnemy =
+            if modBy 300 (round model.count) == 0 then
+                [ { location = ( 300, 300 ), sprite = knight_m_idle_anim } ]
+
+            else
+                []
     in
-    List.map
-        (\en ->
-            { en
-                | sprite = handleSprite en.sprite model.count
-            }
-        )
-        removeDead
+    doWalk ++ newEnemy
+
+
+handlePlayer : Model -> Player
+handlePlayer model =
+    let
+        checkIfDead =
+            List.foldl
+                (\en a ->
+                    let
+                        b1 =
+                            getBoundingBox model.player.location
+                                model.player.sprite.w
+                                model.player.sprite.h
+
+                        b2 =
+                            getBoundingBox en.location
+                                en.sprite.w
+                                en.sprite.h
+                    in
+                    if a then
+                        a
+
+                    else
+                        itCollides b1 b2
+                )
+                False
+                model.enemies
+    in
+    { location =
+        moveOnKeyBoard model.player.location model.pressedKeys
+    , direction =
+        setLastDirection model.player.direction model.pressedKeys
+    , sprite =
+        if model.player.dead then
+            wizzard_m_hit_anim
+
+        else
+            handleSprite model.player.sprite model.count
+    , dead =
+        if model.player.dead then
+            True
+
+        else
+            checkIfDead
+    }
 
 
 tick : Model -> Float -> Model
 tick model delta =
     { model
         | count = model.count + 1
-        , player =
-            { location = moveOnKeyBoard model.player.location model.pressedKeys
-            , direction = setLastDirection model.player.direction model.pressedKeys
-            , sprite = handleSprite model.player.sprite model.count
-            }
+        , fps = 1000 / delta
+        , player = handlePlayer model
         , bullets = handleBullets model
-        , enemies =
-            handleEnemies model
+        , enemies = handleEnemies model
     }
 
 
@@ -475,28 +592,56 @@ viewSprite sprite ( xdir, _ ) =
     , style "width" <| String.fromFloat sprite.w
     , style "height" <| String.fromFloat sprite.h
     , style "background-position" <| setBackgroundPosition sprite
-    , style "transform" ("scale(4) scaleX(" ++ spriteDirection ++ ")")
+    , style "transform" ("scale(" ++ String.fromInt scaleFactor ++ ") scaleX(" ++ spriteDirection ++ ")")
     ]
 
 
-view model =
+drawMap =
     let
+        tiles =
+            List.range 1 30
+                |> List.map
+                    (\i ->
+                        div (viewSprite floor_1 ( toFloat i, toFloat i )) []
+                    )
+    in
+    tiles
+
+
+viewData model =
+    [ div [] [ text "View Data" ]
+    , div [] [ text ("fps : " ++ String.fromFloat model.fps) ]
+    , div [] [ text ("clock : " ++ String.fromFloat model.count) ]
+    ]
+
+
+viewPlayer model =
+    [ let
         playerSprite =
             viewSprite model.player.sprite model.player.direction
 
         playerPosition =
             cssPosition model.player.location
-    in
+      in
+      div (playerSprite ++ playerPosition) []
+    ]
+
+
+viewEnemies model =
+    List.map
+        (\en ->
+            div (viewSprite en.sprite model.player.direction ++ cssPosition en.location) []
+        )
+        model.enemies
+
+
+view model =
     div []
-        ([ div (playerSprite ++ playerPosition) [] --, img
-         , div [] [ text ("fps: " ++ String.fromFloat model.count) ]
-         ]
+        (drawMap
+            ++ viewPlayer model
             ++ drawbullets model.bullets
-            ++ List.map
-                (\en ->
-                    div (viewSprite en.sprite ( 1, 0 ) ++ cssPosition en.location) []
-                )
-                model.enemies
+            ++ viewEnemies model
+            ++ viewData model
         )
 
 
