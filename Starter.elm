@@ -16,6 +16,7 @@ type Msg =
 type alias Model =
     { ticks: Int
      , fps: Float
+     , pressedKeys: List Key
      }
 
 subscriptions : Model -> Sub Msg
@@ -26,19 +27,27 @@ subscriptions _ =
         ]                 
        
 view model =
-    div [] [ text "hello world" ]
+    div []
+        [ div [] [ text "hello world" ]
+        , div [] [ text
+                       <| "fps: " ++ String.fromFloat model.fps ]
+        , div [] [ text
+                       <| "ticks: " ++ String.fromInt model.ticks ]
+                            
+        ]
         
 update msg model =
     case msg of
         Tick delta -> 
-            (model, Cmd.none)
+            ({ model | ticks = model.ticks + 1, fps = 1000 / delta }, Cmd.none)
         KeyMsg keyMsg ->
-            (model, Cmd.none)
+            ({ model | pressedKeys = Keyboard.update keyMsg model.pressedKeys}, Cmd.none)
 
 
 init _ =
     ( { ticks = 1
       , fps = 0.0
+      , pressedKeys = []
       }
       , Cmd.none
     )
