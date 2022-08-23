@@ -8,6 +8,7 @@ import Keyboard exposing (Key(..))
 import Keyboard.Arrows
 import Random
 import DrSprite
+import DrSprite exposing (Sprite)
 
 fold2d :
     { rows : Int, cols : Int }
@@ -32,6 +33,7 @@ type alias GameObject =
     { sprite: DrSprite.Sprite
     , x: Int
     , y: Int
+    , dir: Int
     }
 
 type alias GameState =
@@ -61,19 +63,21 @@ subscriptions _ =
         
 scale : number
 scale = 3
-sv : DrSprite.Sprite -> (Float, Float) -> (Float, Float) -> Html.Html msg
+sv : DrSprite.Sprite -> Float -> (Float, Float) -> Html.Html msg
 sv =  DrSprite.viewSprite  --"https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885_960_720.jpg" scale
     "0x72_DungeonTilesetII_v1.4.png" scale
 
-draw sprite x y =
+draw : GameObject -> Html.Html msg
+draw gameobject =
     let 
         drawSprite =
-            sv sprite
-               (0, 0)
-               (toFloat x, toFloat y)
+            sv gameobject.sprite
+               (toFloat gameobject.dir)
+               (toFloat gameobject.x, toFloat gameobject.y)
      in
         drawSprite
 
+drawTile : Sprite -> Int -> Int -> Html.Html msg
 drawTile sprite x y =
     let
         offset = 100
@@ -86,11 +90,12 @@ drawTile sprite x y =
                    
         drawSprite =
             sv sprite
-               (0, 0)
+               1
                (posx + offset, posy + offset)
      in                   
      drawSprite
 
+drawMap : List (Html.Html msg)
 drawMap =
     let
         tile =
@@ -101,9 +106,11 @@ drawMap =
         (\ (x, y) result -> drawTile tile x y :: result)
         []
 
+drawGameObjects : Model -> List (Html.Html msg)
 drawGameObjects model =
-    List.map ( \ n -> draw n.sprite n.x n.y ) model.gameObjects
+    List.map ( \ n -> draw n ) model.gameObjects
     
+view : Model -> Html.Html msg
 view model =
     div []
         ([ div [] [ text "hello world" ]
@@ -153,6 +160,7 @@ generateGameGrid =
         (\ i r -> i :: r )
         []
         
+init : a -> (Model, Cmd msg)
 init _ =
     ( { ticks = 1
       , fps = 0.0
@@ -166,10 +174,12 @@ init _ =
                 { sprite = lizzardSprite 
                 , x = 0
                 , y = 0
+                , dir = 1
                 }
             , spike = { sprite = floorSpikes
               , x = 100
               , y = 100
+              , dir = 1
               }
             }
         }
@@ -181,6 +191,7 @@ init _ =
     --------- UPDATE --------
     --------- UPDATE --------
 
+animateSprite : Sprite -> Sprite
 animateSprite sprite =
     let
         nextFrame =
@@ -198,17 +209,11 @@ animateGameObject gameObject ticks =
     else
         { gameObject| sprite = animateSprite gameObject.sprite } 
 
+animateGameObjects : List GameObject -> List GameObject
 animateGameObjects gameObjects =
     List.map (\g ->
              { g| sprite = animateSprite g.sprite } )
         gameObjects
-
-animator : Model -> Model
-animator model =
-    if modBy 25 model.ticks /= 0 then
-        model
-    else
-        { model | gameObjects = animateGameObjects model.gameObjects } 
 
 
 tickGame : Model -> Model
@@ -223,11 +228,26 @@ tickGame model =
     }
     
 
+moveOnKeyBoard : List Keyboard.Key -> (Int, Int)
+moveOnKeyBoard pressedKeys =
+    let
+        arrows =
+            Keyboard.Arrows.arrows pressedKeys
+    in
+    ( arrows.x, arrows.y * -1 )
+
+
+moveGameObject  keyx keyy gameObject = 
+    { gameObject | x = gameObject.x + keyx
+                         , y = gameObject.y + keyy
+                         , dir = keyx }
+
 ticker : Float -> Model -> ( Model, Cmd msg)
 ticker delta model =
     let 
+      (keyx, keyy ) = moveOnKeyBoard model.pressedKeys
       hs = animateGameObject model.gameState.hand model.ticks
-        |> (\ go -> { go | x = go.x + 1}) 
+        |> moveGameObject keyx keyy
       ss = animateGameObject model.gameState.spike model.ticks
      
       gs = model.gameState
@@ -247,6 +267,7 @@ ticker delta model =
             --        , Cmd.none ) )
 
     
+update : Msg -> Model -> (Model, Cmd msg)
 update msg model =
     case msg of
         Tick delta ->
