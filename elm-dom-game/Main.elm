@@ -36,7 +36,8 @@ type alias GameObject =
 
 type alias GameState =
     { gameGrid: List (Int, Int)
-    , hand: (Int, Int)
+    , hand: GameObject
+    , spike: GameObject
     }
 
 type Msg =
@@ -120,17 +121,14 @@ view model =
 gameFun : GameState -> (GameState, List GameObject) 
 gameFun gamestate = 
     let
-        (dx, dy) = gamestate.hand
-        nhand = (dx + 1, dy)
+        hand = gamestate.hand
+        nextHand = { hand | x = hand.x + 1 }
     in
     
-    ( {gamestate | hand = nhand}
+    ( {gamestate | hand = nextHand}
     , [
-        { sprite =  lizzardSprite
-        , x = dx
-        , y = dy
-        }
-    ] 
+        nextHand
+      ] 
     )
 
 
@@ -160,18 +158,19 @@ init _ =
       , fps = 0.0
       , pressedKeys = []
       , gameObjects =
-            [ { sprite = floorSpikes
-              , x = 100
-              , y = 100
-              }
---            , { sprite = lizzardSprite 
---              , x = 150
---              , y = 100
---              }
+            [ 
             ]
       , gameState =
             { gameGrid = generateGameGrid
-            , hand = (1,1)
+            , hand = 
+                { sprite = lizzardSprite 
+                , x = 0
+                , y = 0
+                }
+            , spike = { sprite = floorSpikes
+              , x = 100
+              , y = 100
+              }
             }
         }
       , Cmd.none
@@ -191,6 +190,13 @@ animateSprite sprite =
                 sprite.currentFrame + 1
     in
     { sprite | currentFrame = nextFrame }
+
+animateGameObject : GameObject -> Int -> GameObject
+animateGameObject gameObject ticks =
+    if modBy 25 ticks /= 0 then
+        gameObject
+    else
+        { gameObject| sprite = animateSprite gameObject.sprite } 
 
 animateGameObjects gameObjects =
     List.map (\g ->
@@ -216,12 +222,29 @@ tickGame model =
     , gameObjects = nextGameObjects
     }
     
+
+ticker : Float -> Model -> ( Model, Cmd msg)
 ticker delta model =
-            animator model
-            --|> tickGame
-            |> (\ nextModel ->
-                    ({ nextModel | ticks = model.ticks + 1, fps = 1000 / delta }
-                    , Cmd.none ) )
+    let 
+      hs = animateGameObject model.gameState.hand model.ticks
+        |> (\ go -> { go | x = go.x + 1}) 
+      ss = animateGameObject model.gameState.spike model.ticks
+     
+      gs = model.gameState
+      nextGameState = { gs | hand = hs, spike = ss}
+    in
+    ( { model | gameObjects = [hs, ss]
+      , ticks = model.ticks + 1
+      , fps = 1000 / delta
+      , gameState = nextGameState }
+    , Cmd.none)
+    
+                    
+           -- animator model
+           -- |> tickGame
+            --|> (\ nextModel ->
+            --        ({ nextModel | ticks = model.ticks + 1, fps = 1000 / delta }
+            --        , Cmd.none ) )
 
     
 update msg model =
