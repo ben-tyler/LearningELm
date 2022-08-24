@@ -128,23 +128,6 @@ view model =
                     [div [][]]
         )
 
-
----- Game -----
-gameFun : GameState -> (GameState, List GameObject) 
-gameFun gamestate = 
-    let
-        hand = gamestate.hand
-        nextHand = { hand | x = hand.x + 1 }
-    in
-    
-    ( {gamestate | hand = nextHand}
-    , [
-   --     nextHand
-      ] 
-    )
-
-
-
         
 -- initializer         
 lizzardSprite : Sprite
