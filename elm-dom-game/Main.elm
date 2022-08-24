@@ -40,6 +40,7 @@ type alias GameState =
     { gameGrid: List (Int, Int)
     , hand: GameObject
     , spike: GameObject
+    , dead: Bool
     }
 
 type Msg =
@@ -121,6 +122,10 @@ view model =
         ]
              ++ drawMap
              ++ drawGameObjects model
+             ++ if model.gameState.dead then 
+                    [div [][text "YOU ARE DEAD"]]
+                else 
+                    [div [][]]
         )
 
 
@@ -134,7 +139,7 @@ gameFun gamestate =
     
     ( {gamestate | hand = nextHand}
     , [
-        nextHand
+   --     nextHand
       ] 
     )
 
@@ -142,19 +147,24 @@ gameFun gamestate =
 
         
 -- initializer         
+lizzardSprite : Sprite
 lizzardSprite = 
     DrSprite.getSprite 192 228 16 28 4
 
+ladderSprite : Sprite
 ladderSprite =
     DrSprite.getSprite 48 96 16 16 4
 
 
+floorSpikes : Sprite
 floorSpikes =
     DrSprite.getSprite 16 176 16 16 4
 
+swordSprite : Float -> Sprite
 swordSprite  =
     DrSprite.getSprite 316 176 16 16 
         
+generateGameGrid : List (Int, Int)
 generateGameGrid =
     fold2d { rows = 9, cols = 9 }
         (\ i r -> i :: r )
@@ -181,6 +191,7 @@ init _ =
               , y = 100
               , dir = 1
               }
+              , dead = False
             }
         }
       , Cmd.none
@@ -209,24 +220,6 @@ animateGameObject gameObject ticks =
     else
         { gameObject| sprite = animateSprite gameObject.sprite } 
 
-animateGameObjects : List GameObject -> List GameObject
-animateGameObjects gameObjects =
-    List.map (\g ->
-             { g| sprite = animateSprite g.sprite } )
-        gameObjects
-
-
-tickGame : Model -> Model
-tickGame model =
-    let
-        (nextGameState, nextGameObjects) 
-            = gameFun model.gameState
-    in
-    
-    { model | gameState = nextGameState
-    , gameObjects = nextGameObjects
-    }
-    
 
 moveOnKeyBoard : List Keyboard.Key -> (Int, Int)
 moveOnKeyBoard pressedKeys =
@@ -237,10 +230,31 @@ moveOnKeyBoard pressedKeys =
     ( arrows.x, arrows.y * -1 )
 
 
+type alias BoundingBox =
+    { x : Int
+    , y : Int
+    , w : Int
+    , h : Int
+    }
+
+
+getBoundingBox : GameObject -> BoundingBox
+getBoundingBox gameObject =
+    { x = gameObject.x
+    , y = gameObject.y
+    , w = round (gameObject.sprite.w * scale)
+    , h = round (gameObject.sprite.h * scale)
+    }
+
+itCollides : BoundingBox -> BoundingBox -> Bool
+itCollides b1 b2 =
+    b1.x < b2.x + b2.w && b1.x + b1.w > b2.x && b1.y < b2.y + b2.h && b1.h + b1.y > b2.y
+
+moveGameObject : Int -> Int -> GameObject -> GameObject
 moveGameObject  keyx keyy gameObject = 
     { gameObject | x = gameObject.x + keyx
-                         , y = gameObject.y + keyy
-                         , dir = keyx }
+                 , y = gameObject.y + keyy
+                 , dir = keyx }
 
 ticker : Float -> Model -> ( Model, Cmd msg)
 ticker delta model =
@@ -253,25 +267,35 @@ ticker delta model =
       gs = model.gameState
       nextGameState = { gs | hand = hs, spike = ss}
     in
-    ( { model | gameObjects = [hs, ss]
+    ( { model 
+      | gameObjects = [ ss, hs]
       , ticks = model.ticks + 1
       , fps = 1000 / delta
       , gameState = nextGameState }
     , Cmd.none)
-    
-                    
-           -- animator model
-           -- |> tickGame
-            --|> (\ nextModel ->
-            --        ({ nextModel | ticks = model.ticks + 1, fps = 1000 / delta }
-            --        , Cmd.none ) )
 
-    
+collisionDetection : (Model, Cmd msg) -> (Model, Cmd msg) 
+collisionDetection (model, msg) = 
+    let
+        handbb = getBoundingBox model.gameState.hand
+        spikebb = getBoundingBox model.gameState.spike
+
+        dead = 
+            if model.gameState.dead then True else itCollides handbb spikebb 
+
+        setGameState : GameState -> GameState
+        setGameState state =
+            { state | dead = dead} 
+           
+    in
+    ({ model | gameState = setGameState model.gameState } , msg)
+                    
 update : Msg -> Model -> (Model, Cmd msg)
 update msg model =
     case msg of
         Tick delta ->
             ticker delta model
+            |> collisionDetection
         KeyMsg keyMsg ->
             ({ model | pressedKeys = Keyboard.update keyMsg model.pressedKeys}, Cmd.none)
 
