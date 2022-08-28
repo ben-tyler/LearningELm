@@ -8,7 +8,7 @@ scale : number
 scale = 3
 
 toModBy : number
-toModBy = 25
+toModBy = 10
 
 
 type alias GameObject =
@@ -47,6 +47,12 @@ spacebarKlick : List Keyboard.Key -> Bool
 spacebarKlick pressedKeys = 
     List.member Spacebar pressedKeys
 
+
+ctrClick : List Keyboard.Key -> Bool
+ctrClick pressedKeys =
+    List.member Control pressedKeys
+        
+        
 type alias BoundingBox =
     { x : Int
     , y : Int
@@ -72,4 +78,4 @@ moveGameObject : Int -> Int -> GameObject -> GameObject
 moveGameObject  keyx keyy gameObject = 
     { gameObject | x = gameObject.x + keyx
                  , y = gameObject.y + keyy
-                 , dir = keyx }
+                 , dir = if keyx < 0 then -1 else 1}
