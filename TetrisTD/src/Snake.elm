@@ -8,6 +8,7 @@ import Browser
 import Browser.Events exposing (onAnimationFrameDelta)
 import Html exposing (div, img, text)
 import Html.Attributes exposing (height, src, style, width)
+import DrGrid exposing (gameGridObject)
 
 ----------Move this
 scale = 3
@@ -40,41 +41,148 @@ type alias Model =
     , gameGrid: List GameGridObject
     , snake: List GameGridObject
     , food: List GameGridObject
+    , direction: (Int, Int)
     }
 
+makeSnake : (Int, Int) -> GameGridObject
+makeSnake (x, y) = 
+            getSprite 192 68 16 28 4
+            |> DrGrid.gameGridObject (x, y)
 
 init : a -> (Model, Cmd msg)
 init _ =
     let
-        snakeHead =
-            getSprite
-            |> DrGrid.gameGridObject (0, 0)
+        
+        food loc = 
+            getSprite 288 224 16 16 1
+            |> DrGrid.gameGridObject loc
     in
     ( { ticks = 1
       , fps = 0.0
       , pressedKeys = []
       , gameGrid = getSprite 16 16 16 16 1
-                   |> DrGrid.gameGrid 100
-      , snake = [ snakeHead ]
-      , food = []
+                   |> DrGrid.gameGrid
+      , snake = [ makeSnake (1, 0), makeSnake (0, 0)]
+      , food = 
+        [ food (3, 0)
+        , food (5, 0)
+        , food (3, 3)]
+      , direction = (1, 0)
       }
     , Cmd.none
     )
 
 view : Model -> Html.Html msg
+
 view model =
+    let 
+        drawFood = 
+            case model.food of 
+                x::_ -> [draw x.gameObject]
+                [] -> [div [] []]
+    in   
     div []
-        ( [ text "hello world" ]
-          ++ List.map (\i -> draw i.gameObject) model.gameGrid 
+        (  div [] [ text <| String.fromInt model.ticks ] 
+           :: List.map (\i -> draw i.gameObject) model.gameGrid 
+           ++ drawFood
+          -- ++ List.map (\i -> draw i.gameObject ) model.food
+           ++ List.map( \i -> draw i.gameObject) model.snake
         )
+
+handleSnake : Model -> Model
+handleSnake model =
+    let
+        _ = Debug.log "snek" (List.length model.snake)
+        getCurrentFoodLocation = 
+            case model.food of
+                f::_ -> f.grid
+                [] -> (99, 99)
+        
+        keyboardMovement = 
+            DrGame.moveOnKeyBoard model.pressedKeys
+
+        (dx, dy)= 
+            case keyboardMovement of 
+                (0, 0) -> model.direction
+                (_, _) -> keyboardMovement
+
+        newLoc (x, y) = 
+            (x+ dx, y + dy)
+ 
+        move ggo = 
+            DrGrid.moveGameGridObject 
+                (newLoc ggo.grid)
+                 ggo
+
+        -- item moves to the head of the snek
+        smf: List GameGridObject -> Maybe (Int, Int) -> List GameGridObject -> List GameGridObject
+        smf accum prev snake = 
+            case snake of
+                [] -> accum
+                x::xs -> 
+                    case prev of
+                        Nothing -> smf [move x] (Just x.grid) xs
+                        Just ploc -> 
+                            smf 
+                                (accum ++ [(DrGrid.moveGameGridObject ploc x)])
+                                (Just x.grid)
+                                xs
+
+
+        tryToEat snake = 
+            case snake of 
+                snakeHead::r ->
+                    let
+                        (tx, ty) = 
+                            case List.reverse snake of 
+                                x::_ -> x.grid
+                                [] -> (9, 9)
+                    in
+                    if snakeHead.grid == getCurrentFoodLocation then
+                        snakeHead :: r ++ [makeSnake (tx - dx, ty - dy)]
+                    else 
+                        snakeHead::r
+                    --(onFood h) ++ r
+                [] -> []
+
+        nextFood = 
+            if List.length (tryToEat model.snake) /=  List.length model.snake then 
+                case model.food of 
+                    _::r -> r
+                    [] -> []
+            else
+                model.food 
+
+        
+   in
+   { model 
+   | snake =
+         smf [] Nothing model.snake
+         |> tryToEat
+    , food = nextFood
+    , direction = (dx, dy)
+   }
+
+tick : Float -> Model -> Model
+tick delta model = 
+    if modBy 100 model.ticks == 0 then
+       handleSnake model 
+    else 
+        model
+        
 
 update : Msg -> Model -> (Model, Cmd msg)
 update msg model =
     case msg of
         Tick delta ->
-            (model, Cmd.none)
+            ( tick 
+                delta 
+                ({ model | ticks = model.ticks + 1 })
+            , Cmd.none
+            )
         KeyMsg keyMsg ->
-            (model, Cmd.none)
+          ({ model | pressedKeys = Keyboard.update keyMsg model.pressedKeys}, Cmd.none)
+
 
 main : Program () Model Msg
 main =
