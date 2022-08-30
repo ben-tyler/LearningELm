@@ -2,6 +2,7 @@ module DrGrid exposing (..)
 
 import DrSprite
 import DrGame
+import Maybe exposing (withDefault)
 
 offset = 100
 
@@ -60,6 +61,62 @@ moveGameGridObject (x, y) ggo =
         } 
     }
 
+animateGameGridObject : GameGridObject -> Int -> GameGridObject
+animateGameGridObject ggo ticks =
+    { ggo
+    | gameObject = (DrGame.animateGameObject ggo.gameObject ticks)
+    }
+
+
+smoothSetGoo (x, y) ggo =
+    { ggo 
+    | travelling = Just (x, y)
+    , grid = (x, y)
+    }
+
+smoothMoveGgo ggo =
+    let 
+        go = ggo.gameObject 
+
+        doTravel: GameGridObject -> (Int, Int) -> GameGridObject
+        doTravel tggo (tx, ty ) = 
+            let
+                motTraveling = 
+                    tggo.gameObject.x == tx * 16 * DrGame.scale + offset
+                    && tggo.gameObject.x == ty * 16 * DrGame.scale + offset
+                
+                moveX = 
+                    if tggo.gameObject.x < tx * 16 * DrGame.scale + offset then
+                        1
+                    else 
+                        -1
+
+                moveY = 
+                    if tggo.gameObject.y < ty * 16 * DrGame.scale + offset then
+                        1
+                    else 
+                        -1
+
+            in
+            if motTraveling then 
+                tggo
+              --  { tggo 
+              --  | travelling = Nothing 
+              --  }
+            else
+                { tggo
+                | gameObject = 
+                    { go
+                    | x = go.x + moveX
+                    , y = go.y + moveY
+                    }
+                }
+    in
+    case ggo.travelling of 
+        Nothing -> 
+            ggo
+        Just (tx, ty) -> 
+            doTravel ggo (tx, ty)
 
 gameGridObject (x, y) sprite = 
     { gameObject =
@@ -70,5 +127,17 @@ gameGridObject (x, y) sprite =
           }
     , grid = (x, y)
     , travelling = Nothing
+    }
+    
+
+setDir ggo dir = 
+    let
+        go = ggo.gameObject
+    in
+    { ggo
+    | gameObject = 
+        { go
+        | dir = dir
+        }
     }
     

@@ -66,7 +66,16 @@ init _ =
       , food = 
         [ food (3, 0)
         , food (5, 0)
-        , food (3, 3)]
+        , food (3, 3)
+        , food (0, 0)
+        , food (6, 6)
+        , food (8, 0)
+        , food (0, 8)
+        , food (2, 5)
+        , food (6, 3)
+        , food (5, 5)
+        , food (8, 2)
+        ]
       , direction = (1, 0)
       }
     , Cmd.none
@@ -97,20 +106,14 @@ handleSnake model =
             case model.food of
                 f::_ -> f.grid
                 [] -> (99, 99)
-        
-        keyboardMovement = 
-            DrGame.moveOnKeyBoard model.pressedKeys
 
-        (dx, dy)= 
-            case keyboardMovement of 
-                (0, 0) -> model.direction
-                (_, _) -> keyboardMovement
+        (dx, dy)= model.direction
 
         newLoc (x, y) = 
             (x+ dx, y + dy)
  
         move ggo = 
-            DrGrid.moveGameGridObject 
+            DrGrid.smoothSetGoo 
                 (newLoc ggo.grid)
                  ggo
 
@@ -124,7 +127,7 @@ handleSnake model =
                         Nothing -> smf [move x] (Just x.grid) xs
                         Just ploc -> 
                             smf 
-                                (accum ++ [(DrGrid.moveGameGridObject ploc x)])
+                                (accum ++ [(DrGrid.smoothSetGoo ploc x)])
                                 (Just x.grid)
                                 xs
 
@@ -160,15 +163,39 @@ handleSnake model =
          smf [] Nothing model.snake
          |> tryToEat
     , food = nextFood
-    , direction = (dx, dy)
+   -- , direction = (dx, dy)
    }
 
 tick : Float -> Model -> Model
-tick delta model = 
+tick delta model =
+    let
+        (xdir, _) = model.direction
+        animated = 
+            List.map DrGrid.smoothMoveGgo model.snake
+            |> List.map (\ i -> DrGrid.animateGameGridObject i model.ticks)
+            |> List.map( \i -> DrGrid.setDir i xdir)
+
+        animatedModel = 
+            { model
+            | snake = animated
+            }
+
+        snakeHandled = handleSnake animatedModel
+            
+        handleDirection = 
+            case DrGame.moveOnKeyBoard model.pressedKeys of 
+                (0, 0) -> model.direction
+                (_, _) -> DrGame.moveOnKeyBoard model.pressedKeys
+
+    in
     if modBy 100 model.ticks == 0 then
-       handleSnake model 
+       { snakeHandled
+       | direction = handleDirection
+       }
     else 
-        model
+        { animatedModel
+        | direction = handleDirection 
+        }
         
 
 update : Msg -> Model -> (Model, Cmd msg)
