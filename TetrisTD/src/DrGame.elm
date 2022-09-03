@@ -23,6 +23,12 @@ type alias GameObject =
     }
 
 
+type alias Intelligence =
+    { move : List ( Int, Int )
+    , speak: List String
+    }
+
+
 type alias GO =
     { spriteControl : Animation
     , x : Int
@@ -30,6 +36,7 @@ type alias GO =
     , dir : Int
     , gameGrid : Maybe ( Int, Int )
     , traveling : Maybe Bool
+    , intelligence : Maybe Intelligence
     }
 
 
@@ -130,6 +137,15 @@ getBoundingBox gameObject =
     , y = gameObject.y
     , w = round (gameObject.sprite.w * scale)
     , h = round (gameObject.sprite.h * scale)
+    }
+
+
+goBoundingBox : GO -> Float -> BoundingBox
+goBoundingBox go scales =
+    { x = go.x
+    , y = go.y
+    , w = round (go.spriteControl.idle.w * scales) --gameObject.sprite.w * scale)
+    , h = round (go.spriteControl.idle.h * scales) --round (gameObject.sprite.h * scale)
     }
 
 

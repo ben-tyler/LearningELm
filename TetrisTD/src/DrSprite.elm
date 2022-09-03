@@ -1,6 +1,6 @@
 module DrSprite exposing (..)
 
-import Html exposing (div)
+import Html exposing (..)
 import Html.Attributes exposing (style)
 
 type AnimationTypes = Run | Idle
@@ -54,7 +54,7 @@ setSpriteSheet sprite =
     "-" ++ String.fromFloat (sprite.x + sprite.currentFrame * sprite.w) ++ "px" ++ " -" ++ String.fromFloat sprite.y ++ "px"
 
 
-viewSprite : String -> Float -> Sprite -> Float -> ( Float, Float ) -> Html.Html msg
+viewSprite : String -> Float -> Sprite -> Float -> ( Float, Float ) -> Html msg
 viewSprite spriteSheet scale sprite dir ( xloc, yloc ) =
     let
         spriteDirection =

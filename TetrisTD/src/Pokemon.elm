@@ -2,10 +2,14 @@ module Pokemon exposing (..)
 
 import Browser
 import Browser.Events exposing (onAnimationFrame, onAnimationFrameDelta)
-import DrGame exposing (GameObject)
+import Debug exposing (toString)
+import DrGame exposing (GO, GameObject, Intelligence)
+import DrGrid exposing (GameGridObject, gameGrid, goMvGrid)
 import DrSprite
-import Html exposing (div, text)
+import Html exposing (Html, div, text)
+import Html.Attributes exposing (src, style, width)
 import Keyboard exposing (Key(..))
+import Task exposing (Task)
 import Time
 
 
@@ -13,6 +17,7 @@ import Time
 ------------ SPRITE
 
 
+scale : number
 scale =
     3
 
@@ -61,6 +66,26 @@ big_demon_run_anim =
     DrSprite.getSprite 80 364 32 36 5
 
 
+elf_f_idle_anim : DrSprite.Sprite
+elf_f_idle_anim =
+    DrSprite.getSprite 128 4 16 28 4
+
+
+elf_f_run_anim : DrSprite.Sprite
+elf_f_run_anim =
+    DrSprite.getSprite 192 4 16 28 4
+
+
+elf_f_hit_anim : DrSprite.Sprite
+elf_f_hit_anim =
+    DrSprite.getSprite 256 4 16 28 1
+
+
+invis : DrSprite.Sprite
+invis =
+    DrSprite.getSprite 0 4 16 16 1
+
+
 
 -----------
 
@@ -73,12 +98,99 @@ type Msg
 
 type alias Model =
     { ticks : Int
-    , fps : Float
+    , start : Int
     , pressedKeys : List Key
-    , p1 : DrGame.GO
+    , p1 : GO
     , quit : Bool
-    , daisy : DrGame.GO
+    , daisy : GO
+    , talkingToDaisy : Bool
+    , map : List GO
     }
+
+
+ladderSprite =
+    DrSprite.getSprite 48 96 16 16 4
+
+
+initMap : List DrGame.GO
+initMap =
+    DrGrid.fold2d
+        { rows = 1, cols = 15 }
+        (\( x, y ) result ->
+            { spriteControl =
+                { current = DrSprite.Idle
+                , run = invis
+                , idle = invis
+                }
+            , x = x * 16 * DrGame.scale
+            , y = y * 16 * DrGame.scale + 500
+            , dir = 1
+            , gameGrid = Just ( x, y )
+            , traveling = Nothing
+            , intelligence = Nothing
+            }
+                :: result
+        )
+        []
+
+
+init : a -> ( Model, Cmd msg )
+init _ =
+    ( { ticks = 1
+      , start = 1
+      , pressedKeys = []
+      , p1 =
+            { spriteControl =
+                { current = DrSprite.Run
+                , run = big_demon_run_anim
+                , idle = big_demon_idle_anim
+                }
+            , x = 200
+            , y = 500
+            , dir = 1
+            , gameGrid = Nothing
+            , traveling = Nothing
+            , intelligence =
+                Just
+                    { move = []
+                    , speak =
+                        [ "Hello daisy"
+                        , "We have to feed the machine daisy..."
+                        , "daiiiiiisssssyyyyyy"
+                        , "let me out daisy I need to fee"
+                        ]
+                    }
+            }
+      , quit = False
+      , daisy =
+            { spriteControl =
+                { current = DrSprite.Run
+                , run = elf_f_idle_anim
+                , idle = elf_f_idle_anim
+                }
+            , x = 0
+            , y = 500
+            , dir = 1
+            , gameGrid = Just ( 10, 0 )
+            , traveling = Just True
+            , intelligence =
+                Just
+                    { move =
+                        [ ( 9, 0 )
+                        , ( 1, 0 )
+                        , ( 5, 0 )
+                        , ( 9, 0 )
+                        , ( 9, 0 )
+                        , ( 3, 0 )
+                        ]
+                    , speak = []
+                    }
+            }
+      , map = initMap
+      , talkingToDaisy = False
+      }
+    , Cmd.none
+    )
 
 
 subscriptions : Model -> Sub Msg
@@ -90,22 +202,65 @@ subscriptions _ =
         ]
 
 
+viewTalkToDaisy : Model -> Html.Html msg
+viewTalkToDaisy model =
+    let
+        talkText =
+            case model.p1.intelligence of
+                Nothing ->
+                    ""
+
+                Just int ->
+                    case int.speak of
+                        x :: xs ->
+                            x
+
+                        [] ->
+                            ""
+    in
+    if model.talkingToDaisy then
+        div
+            [ style "background-image" "url('https://cdn.pixabay.com/photo/2013/07/13/13/20/bubble-160851_960_720.png')"
+            , style "background-size" "200px"
+            , style "position" "absolute"
+            , style "left" (toString (model.p1.x - 50))
+            , style "top" (toString (model.p1.y - 200))
+            , style "width" "200"
+            , style "height" "140"
+            , style "transform" "scaleX(1)"
+            ]
+            [ div
+                [ style "position" "absolute"
+                , style "left" "50px"
+                , style "top" "50px"
+                ]
+                [ text <|
+                    talkText
+                ]
+            ]
+
+    else
+        div [] []
+
+
 view : Model -> Html.Html msg
 view model =
     div []
         [ div [] [ text "hello world" ]
         , div []
             [ text <|
-                "fps: "
-                    ++ String.fromFloat model.fps
-            ]
-        , div []
-            [ text <|
                 "ticks: "
                     ++ String.fromInt model.ticks
             ]
-        , drawGO model.p1
+        , Html.img
+            [ src "https://cdn.dribbble.com/users/119313/screenshots/1681630/media/8e5179ea4d3045dfe6578a1642ffcb33.gif"
+            , width 700
+            ]
+            []
+        , div [] (List.map (\i -> drawGO i) model.map)
         , drawGO model.daisy
+        , drawGO model.p1
+        , viewTalkToDaisy model
         ]
 
 
@@ -114,23 +269,89 @@ gameLoop model =
     let
         -- No issue with run sprite, I think it switches between them fine.
         -- just in one case run animation is not playing
-        _ =
-            Debug.log "m" (DrGame.moveOnKeyBoard model.pressedKeys)
-
-        n =
+        -- _ =
+        --     Debug.log "m" controllkDiasy
+        controllPlayer =
             case DrGame.moveOnKeyBoard model.pressedKeys of
                 ( 0, 0 ) ->
                     DrGame.animateGO model.p1 model.ticks DrSprite.Idle
-                 --   model.p1
-                    --DrGame.animateGO model.p1 model.ticks DrSprite.Idle
-                   --     |> DrGame.moveGO 0 0
 
-                ( x, y ) ->
+                ( x, _ ) ->
                     DrGame.animateGO model.p1 model.ticks DrSprite.Run
-                        |> DrGame.moveGO x y
+                        |> DrGame.moveGO x 0
+
+        controllkDiasy : GO
+        controllkDiasy =
+            DrGame.animateGO model.daisy model.ticks DrSprite.Idle
+                |> goMvGrid model.map
+
+        controllTalk =
+            DrGame.itCollides (DrGame.goBoundingBox model.p1 8) (DrGame.goBoundingBox model.daisy 8)
+
+        p1 =
+            model.p1
+
+        controllSpeakIntelligence p1go =
+            if model.talkingToDaisy && controllTalk == False then
+                { p1go
+                    | intelligence =
+                        case p1go.intelligence of
+                            Just p1intel ->
+                                case p1intel.speak of
+                                    _ :: xs ->
+                                        Just
+                                            { p1intel
+                                                | speak = xs
+                                            }
+
+                                    [] ->
+                                        Just p1intel
+
+                            _ ->
+                                Nothing
+                }
+
+            else
+                p1go
+
+        controllMoveIntelligence : GO -> GO
+        controllMoveIntelligence p1go =
+            let
+                ( newIntelligence, newGameGrid ) =
+                    case p1go.intelligence of
+                        Just p1intel ->
+                            case p1intel.move of
+                                x :: xs ->
+                                    ( Just
+                                        { p1intel
+                                            | move = xs
+                                        }
+                                    , Just x
+                                    )
+
+                                [] ->
+                                    ( Just p1intel, Nothing )
+
+                        Nothing ->
+                            ( Nothing, Nothing )
+            in
+            if model.talkingToDaisy == False && controllTalk == True then
+                { p1go
+                    | intelligence = newIntelligence
+                    , gameGrid = newGameGrid
+                }
+
+            else
+                p1go
     in
     { model
-        | p1 = n
+        | p1 =
+            controllPlayer
+                |> controllSpeakIntelligence
+        , daisy =
+            controllkDiasy
+                |> controllMoveIntelligence
+        , talkingToDaisy = controllTalk
     }
 
 
@@ -171,41 +392,6 @@ update msg model =
                     }
                 , Cmd.none
                 )
-
-
-init : a -> ( Model, Cmd msg )
-init _ =
-    ( { ticks = 1
-      , fps = 0.0
-      , pressedKeys = []
-      , p1 =
-            { spriteControl =
-                { current = DrSprite.Run
-                , run = big_demon_run_anim
-                , idle = big_demon_idle_anim
-                }
-            , x = 200
-            , y = 200
-            , dir = 1
-            , gameGrid = Nothing
-            , traveling = Nothing
-            }
-      , quit = False
-      , daisy =
-            { spriteControl =
-                { current = DrSprite.Run
-                , run = big_demon_run_anim
-                , idle = big_demon_idle_anim
-                }
-            , x = 200
-            , y = 200
-            , dir = 1
-            , gameGrid = Nothing
-            , traveling = Nothing
-            }
-      }
-    , Cmd.none
-    )
 
 
 main : Program () Model Msg

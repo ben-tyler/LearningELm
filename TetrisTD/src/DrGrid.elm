@@ -1,8 +1,10 @@
 module DrGrid exposing (..)
 
 import DrSprite
-import DrGame
+import DrGame exposing (..)
 import Maybe exposing (withDefault)
+import Html exposing (i)
+import Debug
 
 offset = 100
 
@@ -67,6 +69,67 @@ animateGameGridObject ggo ticks =
     | gameObject = (DrGame.animateGameObject ggo.gameObject ticks)
     }
 
+goSetGrid : (Int, Int) -> GO -> GO
+goSetGrid (x, y) go = 
+    { go
+    | traveling = Just True
+    , gameGrid = Just (x, y)
+    }
+
+type Map = List DrGame.GO
+
+goMvGrid : List DrGame.GO -> GO -> GO 
+goMvGrid map go = 
+    let
+        _ = Debug.log "logme" map
+        getDirection: Maybe GO
+        getDirection = 
+            List.foldl ( \ i a -> 
+                case (i.gameGrid, go.gameGrid) of
+                    (Just (ix, iy), Just (gx, gy)) -> 
+                        if ix == gx && iy == gy then 
+                            Just i
+                        else 
+                            a
+                    _ -> a
+                )
+            Nothing
+            map
+
+        travel : Maybe GO -> GO
+        travel maybeDir =
+            let
+                _ = Debug.log "dir" maybeDir
+                _ = Debug.log "daisy" go
+            in
+            
+            case maybeDir of
+                Nothing -> go
+                Just dir -> 
+                    if go.x == dir.x && go.x == dir.y then
+                        {go | traveling = Nothing}
+                    else 
+                        { go
+                        | x = 
+                            if go.x < dir.x then 
+                                go.x + 1
+                            else 
+                                go.x - 1
+                        , y = 
+                            if go.y < dir.y then 
+                                go.y + 1
+                            else 
+                                go.y - 1
+                        }
+       
+    in
+    
+    case go.traveling of
+        Nothing -> 
+            go
+        _ -> 
+            travel getDirection
+    
 
 smoothSetGoo (x, y) ggo =
     { ggo 

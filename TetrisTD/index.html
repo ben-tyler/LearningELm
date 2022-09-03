@@ -5180,6 +5180,69 @@ var $author$project$DrSprite$getSprite = F5(
 	});
 var $author$project$Pokemon$big_demon_idle_anim = A5($author$project$DrSprite$getSprite, 16, 360, 32, 60, 3);
 var $author$project$Pokemon$big_demon_run_anim = A5($author$project$DrSprite$getSprite, 80, 364, 32, 36, 5);
+var $author$project$Pokemon$elf_f_idle_anim = A5($author$project$DrSprite$getSprite, 128, 4, 16, 28, 4);
+var $author$project$DrSprite$Idle = {$: 'Idle'};
+var $elm$core$Basics$ge = _Utils_ge;
+var $author$project$DrGrid$fold2d = F3(
+	function (_v0, fn, initial) {
+		var rows = _v0.rows;
+		var cols = _v0.cols;
+		var iter = F3(
+			function (x, y, res) {
+				iter:
+				while (true) {
+					if (_Utils_cmp(y, rows) > -1) {
+						return res;
+					} else {
+						if (_Utils_cmp(x, cols) > -1) {
+							var $temp$x = 0,
+								$temp$y = y + 1,
+								$temp$res = res;
+							x = $temp$x;
+							y = $temp$y;
+							res = $temp$res;
+							continue iter;
+						} else {
+							var $temp$x = x + 1,
+								$temp$y = y,
+								$temp$res = A2(
+								fn,
+								_Utils_Tuple2(x, y),
+								res);
+							x = $temp$x;
+							y = $temp$y;
+							res = $temp$res;
+							continue iter;
+						}
+					}
+				}
+			});
+		return A3(iter, 0, 0, initial);
+	});
+var $author$project$Pokemon$invis = A5($author$project$DrSprite$getSprite, 0, 4, 16, 16, 1);
+var $author$project$DrGame$scale = 3;
+var $author$project$Pokemon$initMap = A3(
+	$author$project$DrGrid$fold2d,
+	{cols: 15, rows: 1},
+	F2(
+		function (_v0, result) {
+			var x = _v0.a;
+			var y = _v0.b;
+			return A2(
+				$elm$core$List$cons,
+				{
+					dir: 1,
+					gameGrid: $elm$core$Maybe$Just(
+						_Utils_Tuple2(x, y)),
+					intelligence: $elm$core$Maybe$Nothing,
+					spriteControl: {current: $author$project$DrSprite$Idle, idle: $author$project$Pokemon$invis, run: $author$project$Pokemon$invis},
+					traveling: $elm$core$Maybe$Nothing,
+					x: (x * 16) * $author$project$DrGame$scale,
+					y: ((y * 16) * $author$project$DrGame$scale) + 500
+				},
+				result);
+		}),
+	_List_Nil);
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $author$project$Pokemon$init = function (_v0) {
@@ -5187,23 +5250,45 @@ var $author$project$Pokemon$init = function (_v0) {
 		{
 			daisy: {
 				dir: 1,
-				gameGrid: $elm$core$Maybe$Nothing,
-				spriteControl: {current: $author$project$DrSprite$Run, idle: $author$project$Pokemon$big_demon_idle_anim, run: $author$project$Pokemon$big_demon_run_anim},
-				traveling: $elm$core$Maybe$Nothing,
-				x: 200,
-				y: 200
+				gameGrid: $elm$core$Maybe$Just(
+					_Utils_Tuple2(10, 0)),
+				intelligence: $elm$core$Maybe$Just(
+					{
+						move: _List_fromArray(
+							[
+								_Utils_Tuple2(9, 0),
+								_Utils_Tuple2(1, 0),
+								_Utils_Tuple2(5, 0),
+								_Utils_Tuple2(9, 0),
+								_Utils_Tuple2(9, 0),
+								_Utils_Tuple2(3, 0)
+							]),
+						speak: _List_Nil
+					}),
+				spriteControl: {current: $author$project$DrSprite$Run, idle: $author$project$Pokemon$elf_f_idle_anim, run: $author$project$Pokemon$elf_f_idle_anim},
+				traveling: $elm$core$Maybe$Just(true),
+				x: 0,
+				y: 500
 			},
-			fps: 0.0,
+			map: $author$project$Pokemon$initMap,
 			p1: {
 				dir: 1,
 				gameGrid: $elm$core$Maybe$Nothing,
+				intelligence: $elm$core$Maybe$Just(
+					{
+						move: _List_Nil,
+						speak: _List_fromArray(
+							['Hello daisy', 'We have to feed the machine daisy...', 'daiiiiiisssssyyyyyy', 'let me out daisy I need to fee'])
+					}),
 				spriteControl: {current: $author$project$DrSprite$Run, idle: $author$project$Pokemon$big_demon_idle_anim, run: $author$project$Pokemon$big_demon_run_anim},
 				traveling: $elm$core$Maybe$Nothing,
 				x: 200,
-				y: 200
+				y: 500
 			},
 			pressedKeys: _List_Nil,
 			quit: false,
+			start: 1,
+			talkingToDaisy: false,
 			ticks: 1
 		},
 		$elm$core$Platform$Cmd$none);
@@ -5832,7 +5917,6 @@ var $author$project$Pokemon$checkQuit = function (model) {
 		model,
 		{quit: true}) : model;
 };
-var $author$project$DrSprite$Idle = {$: 'Idle'};
 var $author$project$DrGame$animateSprite = function (sprite) {
 	return _Utils_update(
 		sprite,
@@ -5868,7 +5952,67 @@ var $author$project$DrGame$animateGO = F3(
 				spriteControl: controlSprite(go.spriteControl)
 			});
 	});
+var $elm$core$Basics$round = _Basics_round;
+var $author$project$DrGame$goBoundingBox = F2(
+	function (go, scales) {
+		return {
+			h: $elm$core$Basics$round(go.spriteControl.idle.h * scales),
+			w: $elm$core$Basics$round(go.spriteControl.idle.w * scales),
+			x: go.x,
+			y: go.y
+		};
+	});
 var $elm$core$Debug$log = _Debug_log;
+var $author$project$DrGrid$goMvGrid = F2(
+	function (map, go) {
+		var travel = function (maybeDir) {
+			var _v5 = A2($elm$core$Debug$log, 'dir', maybeDir);
+			var _v6 = A2($elm$core$Debug$log, 'daisy', go);
+			if (maybeDir.$ === 'Nothing') {
+				return go;
+			} else {
+				var dir = maybeDir.a;
+				return (_Utils_eq(go.x, dir.x) && _Utils_eq(go.x, dir.y)) ? _Utils_update(
+					go,
+					{traveling: $elm$core$Maybe$Nothing}) : _Utils_update(
+					go,
+					{
+						x: (_Utils_cmp(go.x, dir.x) < 0) ? (go.x + 1) : (go.x - 1),
+						y: (_Utils_cmp(go.y, dir.y) < 0) ? (go.y + 1) : (go.y - 1)
+					});
+			}
+		};
+		var getDirection = A3(
+			$elm$core$List$foldl,
+			F2(
+				function (i, a) {
+					var _v2 = _Utils_Tuple2(i.gameGrid, go.gameGrid);
+					if ((_v2.a.$ === 'Just') && (_v2.b.$ === 'Just')) {
+						var _v3 = _v2.a.a;
+						var ix = _v3.a;
+						var iy = _v3.b;
+						var _v4 = _v2.b.a;
+						var gx = _v4.a;
+						var gy = _v4.b;
+						return (_Utils_eq(ix, gx) && _Utils_eq(iy, gy)) ? $elm$core$Maybe$Just(i) : a;
+					} else {
+						return a;
+					}
+				}),
+			$elm$core$Maybe$Nothing,
+			map);
+		var _v0 = A2($elm$core$Debug$log, 'logme', map);
+		var _v1 = go.traveling;
+		if (_v1.$ === 'Nothing') {
+			return go;
+		} else {
+			return travel(getDirection);
+		}
+	});
+var $author$project$DrGame$itCollides = F2(
+	function (b1, b2) {
+		return (_Utils_cmp(b1.x, b2.x + b2.w) < 0) && ((_Utils_cmp(b1.x + b1.w, b2.x) > 0) && ((_Utils_cmp(b1.y, b2.y + b2.h) < 0) && (_Utils_cmp(b1.h + b1.y, b2.y) > 0)));
+	});
 var $elm$core$Basics$negate = function (n) {
 	return -n;
 };
@@ -5921,27 +6065,89 @@ var $author$project$DrGame$moveOnKeyBoard = function (pressedKeys) {
 	return _Utils_Tuple2(arrows.x, arrows.y * (-1));
 };
 var $author$project$Pokemon$gameLoop = function (model) {
-	var n = function () {
-		var _v1 = $author$project$DrGame$moveOnKeyBoard(model.pressedKeys);
-		if ((!_v1.a) && (!_v1.b)) {
+	var p1 = model.p1;
+	var controllkDiasy = A2(
+		$author$project$DrGrid$goMvGrid,
+		model.map,
+		A3($author$project$DrGame$animateGO, model.daisy, model.ticks, $author$project$DrSprite$Idle));
+	var controllTalk = A2(
+		$author$project$DrGame$itCollides,
+		A2($author$project$DrGame$goBoundingBox, model.p1, 8),
+		A2($author$project$DrGame$goBoundingBox, model.daisy, 8));
+	var controllSpeakIntelligence = function (p1go) {
+		return (model.talkingToDaisy && (!controllTalk)) ? _Utils_update(
+			p1go,
+			{
+				intelligence: function () {
+					var _v4 = p1go.intelligence;
+					if (_v4.$ === 'Just') {
+						var p1intel = _v4.a;
+						var _v5 = p1intel.speak;
+						if (_v5.b) {
+							var xs = _v5.b;
+							return $elm$core$Maybe$Just(
+								_Utils_update(
+									p1intel,
+									{speak: xs}));
+						} else {
+							return $elm$core$Maybe$Just(p1intel);
+						}
+					} else {
+						return $elm$core$Maybe$Nothing;
+					}
+				}()
+			}) : p1go;
+	};
+	var controllPlayer = function () {
+		var _v3 = $author$project$DrGame$moveOnKeyBoard(model.pressedKeys);
+		if ((!_v3.a) && (!_v3.b)) {
 			return A3($author$project$DrGame$animateGO, model.p1, model.ticks, $author$project$DrSprite$Idle);
 		} else {
-			var x = _v1.a;
-			var y = _v1.b;
+			var x = _v3.a;
 			return A3(
 				$author$project$DrGame$moveGO,
 				x,
-				y,
+				0,
 				A3($author$project$DrGame$animateGO, model.p1, model.ticks, $author$project$DrSprite$Run));
 		}
 	}();
-	var _v0 = A2(
-		$elm$core$Debug$log,
-		'm',
-		$author$project$DrGame$moveOnKeyBoard(model.pressedKeys));
+	var controllMoveIntelligence = function (p1go) {
+		var _v0 = function () {
+			var _v1 = p1go.intelligence;
+			if (_v1.$ === 'Just') {
+				var p1intel = _v1.a;
+				var _v2 = p1intel.move;
+				if (_v2.b) {
+					var x = _v2.a;
+					var xs = _v2.b;
+					return _Utils_Tuple2(
+						$elm$core$Maybe$Just(
+							_Utils_update(
+								p1intel,
+								{move: xs})),
+						$elm$core$Maybe$Just(x));
+				} else {
+					return _Utils_Tuple2(
+						$elm$core$Maybe$Just(p1intel),
+						$elm$core$Maybe$Nothing);
+				}
+			} else {
+				return _Utils_Tuple2($elm$core$Maybe$Nothing, $elm$core$Maybe$Nothing);
+			}
+		}();
+		var newIntelligence = _v0.a;
+		var newGameGrid = _v0.b;
+		return ((!model.talkingToDaisy) && controllTalk) ? _Utils_update(
+			p1go,
+			{gameGrid: newGameGrid, intelligence: newIntelligence}) : p1go;
+	};
 	return _Utils_update(
 		model,
-		{p1: n});
+		{
+			daisy: controllMoveIntelligence(controllkDiasy),
+			p1: controllSpeakIntelligence(controllPlayer),
+			talkingToDaisy: controllTalk
+		});
 };
 var $ohanhi$keyboard$Keyboard$Backspace = {$: 'Backspace'};
 var $ohanhi$keyboard$Keyboard$Clear = {$: 'Clear'};
@@ -6495,8 +6701,82 @@ var $author$project$Pokemon$drawGO = function (go) {
 			_Utils_Tuple2(go.x, go.y));
 	}
 };
+var $elm$html$Html$img = _VirtualDom_node('img');
+var $elm$json$Json$Encode$string = _Json_wrap;
+var $elm$html$Html$Attributes$stringProperty = F2(
+	function (key, string) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			$elm$json$Json$Encode$string(string));
+	});
+var $elm$html$Html$Attributes$src = function (url) {
+	return A2(
+		$elm$html$Html$Attributes$stringProperty,
+		'src',
+		_VirtualDom_noJavaScriptOrHtmlUri(url));
+};
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
+var $elm$core$Debug$toString = _Debug_toString;
+var $author$project$Pokemon$viewTalkToDaisy = function (model) {
+	var talkText = function () {
+		var _v0 = model.p1.intelligence;
+		if (_v0.$ === 'Nothing') {
+			return '';
+		} else {
+			var _int = _v0.a;
+			var _v1 = _int.speak;
+			if (_v1.b) {
+				var x = _v1.a;
+				var xs = _v1.b;
+				return x;
+			} else {
+				return '';
+			}
+		}
+	}();
+	return model.talkingToDaisy ? A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'background-image', 'url(\'https://cdn.pixabay.com/photo/2013/07/13/13/20/bubble-160851_960_720.png\')'),
+				A2($elm$html$Html$Attributes$style, 'background-size', '200px'),
+				A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
+				A2(
+				$elm$html$Html$Attributes$style,
+				'left',
+				$elm$core$Debug$toString(model.p1.x - 50)),
+				A2(
+				$elm$html$Html$Attributes$style,
+				'top',
+				$elm$core$Debug$toString(model.p1.y - 200)),
+				A2($elm$html$Html$Attributes$style, 'width', '200'),
+				A2($elm$html$Html$Attributes$style, 'height', '140'),
+				A2($elm$html$Html$Attributes$style, 'transform', 'scaleX(1)')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
+						A2($elm$html$Html$Attributes$style, 'left', '50px'),
+						A2($elm$html$Html$Attributes$style, 'top', '50px')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text(talkText)
+					]))
+			])) : A2($elm$html$Html$div, _List_Nil, _List_Nil);
+};
+var $elm$html$Html$Attributes$width = function (n) {
+	return A2(
+		_VirtualDom_attribute,
+		'width',
+		$elm$core$String$fromInt(n));
+};
 var $author$project$Pokemon$view = function (model) {
 	return A2(
 		$elm$html$Html$div,
@@ -6516,18 +6796,28 @@ var $author$project$Pokemon$view = function (model) {
 				_List_fromArray(
 					[
 						$elm$html$Html$text(
-						'fps: ' + $elm$core$String$fromFloat(model.fps))
+						'ticks: ' + $elm$core$String$fromInt(model.ticks))
 					])),
+				A2(
+				$elm$html$Html$img,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$src('https://cdn.dribbble.com/users/119313/screenshots/1681630/media/8e5179ea4d3045dfe6578a1642ffcb33.gif'),
+						$elm$html$Html$Attributes$width(700)
+					]),
+				_List_Nil),
 				A2(
 				$elm$html$Html$div,
 				_List_Nil,
-				_List_fromArray(
-					[
-						$elm$html$Html$text(
-						'ticks: ' + $elm$core$String$fromInt(model.ticks))
-					])),
+				A2(
+					$elm$core$List$map,
+					function (i) {
+						return $author$project$Pokemon$drawGO(i);
+					},
+					model.map)),
+				$author$project$Pokemon$drawGO(model.daisy),
 				$author$project$Pokemon$drawGO(model.p1),
-				$author$project$Pokemon$drawGO(model.daisy)
+				$author$project$Pokemon$viewTalkToDaisy(model)
 			]));
 };
 var $author$project$Pokemon$main = $elm$browser$Browser$element(
