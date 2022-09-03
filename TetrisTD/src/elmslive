@@ -1,0 +1,1 @@
+elm-live src/Pokemon.elm --start-page="index.html" --hot --dir=docs --port=8001 --path-to-elm=node_modules/.bin/elm -- --output="docs/js-compiled/elm.js" --debug

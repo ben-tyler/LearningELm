@@ -5,10 +5,11 @@ import DrGame exposing (GameObject)
 import DrGrid exposing (GameGridObject)
 import DrSprite exposing (getSprite)
 import Browser
-import Browser.Events exposing (onAnimationFrameDelta)
+import Browser.Events exposing (onAnimationFrameDelta, onAnimationFrame)
 import Html exposing (div, img, text)
 import Html.Attributes exposing (height, src, style, width)
 import DrGrid exposing (gameGridObject)
+import Time
 
 ----------Move this
 scale = 3
@@ -32,6 +33,7 @@ draw gameobject =
 
 type Msg = 
     Tick Float
+    | LockedTock Time.Posix
     | KeyMsg Keyboard.Msg
 
 type alias Model =
@@ -52,7 +54,6 @@ makeSnake (x, y) =
 init : a -> (Model, Cmd msg)
 init _ =
     let
-        
         food loc = 
             getSprite 288 224 16 16 1
             |> DrGrid.gameGridObject loc
@@ -188,7 +189,7 @@ tick delta model =
                 (_, _) -> DrGame.moveOnKeyBoard model.pressedKeys
 
     in
-    if modBy 100 model.ticks == 0 then
+    if modBy 200 model.ticks == 0 then
        { snakeHandled
        | direction = handleDirection
        }
@@ -201,12 +202,21 @@ tick delta model =
 update : Msg -> Model -> (Model, Cmd msg)
 update msg model =
     case msg of
-        Tick delta ->
+        LockedTock posix -> 
             ( tick 
-                delta 
+                1.0 
                 ({ model | ticks = model.ticks + 1 })
             , Cmd.none
             )
+
+        Tick delta ->
+            --( tick 
+            --    delta 
+            --    ({ model | ticks = model.ticks + 1 })
+            --, Cmd.none
+            --)
+            (model, Cmd.none)
+       
         KeyMsg keyMsg ->
           ({ model | pressedKeys = Keyboard.update keyMsg model.pressedKeys}, Cmd.none)
 
@@ -225,6 +235,7 @@ subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch <|
         [ onAnimationFrameDelta Tick
+        , onAnimationFrame LockedTock
         , Sub.map KeyMsg Keyboard.subscriptions
         ]
         

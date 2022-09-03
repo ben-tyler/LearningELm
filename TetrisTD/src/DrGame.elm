@@ -1,41 +1,103 @@
 module DrGame exposing (..)
 
+import DrSprite exposing (..)
 import Keyboard exposing (Key(..))
 import Keyboard.Arrows
-import DrSprite exposing (..)
+
 
 scale : number
-scale = 3
+scale =
+    3
+
 
 toModBy : number
-toModBy = 10
+toModBy =
+    25
 
 
 type alias GameObject =
-    { sprite: DrSprite.Sprite
-    , x: Int
-    , y: Int
-    , dir: Int
+    { sprite : DrSprite.Sprite
+    , x : Int
+    , y : Int
+    , dir : Int
     }
+
+
+type alias GO =
+    { spriteControl : Animation
+    , x : Int
+    , y : Int
+    , dir : Int
+    , gameGrid : Maybe ( Int, Int )
+    , traveling : Maybe Bool
+    }
+
 
 animateSprite : Sprite -> Sprite
 animateSprite sprite =
-    { sprite | currentFrame = 
-        if sprite.currentFrame == sprite.frames then
+    { sprite
+        | currentFrame =
+            if sprite.currentFrame == sprite.frames then
                 1
+
             else
-                sprite.currentFrame + 1 
+                sprite.currentFrame + 1
     }
+
+
+animationControl : Animation -> Animation
+animationControl animation =
+    case animation.current of
+        Run ->
+            { animation | run = animateSprite animation.run }
+
+        Idle ->
+            { animation | idle = animateSprite animation.idle }
+
+
+getSprite animation =
+    case animation.current of
+        Run ->
+            animation.run
+
+        Idle ->
+            animation.idle
+
+
+animateGO : GO -> Int -> AnimationTypes -> GO
+animateGO go ticks ani =
+    let
+        controlSprite spriteControl =
+            case ani of
+                Run ->
+                    { spriteControl
+                        | run = animateSprite spriteControl.run
+                        , current = ani
+                    }
+
+                Idle ->
+                    { spriteControl
+                        | idle = animateSprite spriteControl.idle
+                        , current = ani
+                    }
+    in
+    if modBy toModBy ticks /= 0 then
+        go
+
+    else
+        { go | spriteControl = controlSprite go.spriteControl }
+
 
 animateGameObject : GameObject -> Int -> GameObject
 animateGameObject gameObject ticks =
     if modBy toModBy ticks /= 0 then
         gameObject
+
     else
-        { gameObject| sprite = animateSprite gameObject.sprite } 
+        { gameObject | sprite = animateSprite gameObject.sprite }
 
 
-moveOnKeyBoard : List Keyboard.Key -> (Int, Int)
+moveOnKeyBoard : List Keyboard.Key -> ( Int, Int )
 moveOnKeyBoard pressedKeys =
     let
         arrows =
@@ -43,16 +105,17 @@ moveOnKeyBoard pressedKeys =
     in
     ( arrows.x, arrows.y * -1 )
 
+
 spacebarKlick : List Keyboard.Key -> Bool
-spacebarKlick pressedKeys = 
+spacebarKlick pressedKeys =
     List.member Spacebar pressedKeys
 
 
 ctrClick : List Keyboard.Key -> Bool
 ctrClick pressedKeys =
     List.member Control pressedKeys
-        
-        
+
+
 type alias BoundingBox =
     { x : Int
     , y : Int
@@ -74,8 +137,44 @@ itCollides : BoundingBox -> BoundingBox -> Bool
 itCollides b1 b2 =
     b1.x < b2.x + b2.w && b1.x + b1.w > b2.x && b1.y < b2.y + b2.h && b1.h + b1.y > b2.y
 
+
 moveGameObject : Int -> Int -> GameObject -> GameObject
-moveGameObject  keyx keyy gameObject = 
-    { gameObject | x = gameObject.x + keyx
-                 , y = gameObject.y + keyy
-                 , dir = if keyx < 0 then -1 else 1}
+moveGameObject keyx keyy gameObject =
+    { gameObject
+        | x = gameObject.x + keyx
+        , y = gameObject.y + keyy
+        , dir =
+            if keyx < 0 then
+                -1
+
+            else
+                1
+    }
+
+
+moveGO : Int -> Int -> GO -> GO
+moveGO keyx keyy gameObject =
+    let
+        handleSpriteControl spriteControl =
+            case ( spriteControl.current, keyx, keyy ) of
+                ( Run, 0, 0 ) ->
+                    { spriteControl | current = Idle }
+
+                ( Idle, _, _ ) ->
+                    { spriteControl | current = Run }
+
+                ( _, _, _ ) ->
+                    spriteControl
+    in
+    { gameObject
+        | x = gameObject.x + keyx
+        , y = gameObject.y + keyy
+        , dir =
+            if keyx < 0 then
+                -1
+
+            else
+                1
+
+        -- , spriteControl = handleSpriteControl gameObject.spriteControl
+    }
