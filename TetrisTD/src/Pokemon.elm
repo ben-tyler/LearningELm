@@ -3,11 +3,12 @@ module Pokemon exposing (..)
 import Browser
 import Browser.Events exposing (onAnimationFrame, onAnimationFrameDelta)
 import Debug exposing (toString)
-import DrGame exposing (GO, GameObject, Intelligence)
+import DrGame exposing (Action(..), GO, GameObject, Intelligence)
 import DrGrid exposing (GameGridObject, gameGrid, goMvGrid)
 import DrSprite
-import Html exposing (Html, div, text)
-import Html.Attributes exposing (src, style, width)
+import Html exposing (Html, button, div, text)
+import Html.Attributes exposing (height, src, style, width)
+import Html.Events exposing (onClick, onMouseDown, onMouseUp)
 import Keyboard exposing (Key(..))
 import Task exposing (Task)
 import Time
@@ -68,12 +69,12 @@ big_demon_run_anim =
 
 elf_f_idle_anim : DrSprite.Sprite
 elf_f_idle_anim =
-    DrSprite.getSprite 128 4 16 28 4
+    DrSprite.getSprite 128 4 16 28 1
 
 
 elf_f_run_anim : DrSprite.Sprite
 elf_f_run_anim =
-    DrSprite.getSprite 192 4 16 28 4
+    DrSprite.getSprite 128 4 16 28 4
 
 
 elf_f_hit_anim : DrSprite.Sprite
@@ -86,6 +87,10 @@ invis =
     DrSprite.getSprite 0 4 16 16 1
 
 
+chest_empty_open_anim =
+    DrSprite.getSprite 304 288 16 16 3
+
+
 
 -----------
 
@@ -94,6 +99,9 @@ type Msg
     = Tick Float
     | LockedTick Time.Posix
     | KeyMsg Keyboard.Msg
+    | MoveRight
+    | MoveLeft
+    | MouseUp
 
 
 type alias Model =
@@ -103,6 +111,8 @@ type alias Model =
     , p1 : GO
     , quit : Bool
     , daisy : GO
+    , box : GO
+    , daisyCarriesBox: Bool
     , talkingToDaisy : Bool
     , map : List GO
     }
@@ -123,7 +133,7 @@ initMap =
                 , idle = invis
                 }
             , x = x * 16 * DrGame.scale
-            , y = y * 16 * DrGame.scale + 500
+            , y = y * 16 * DrGame.scale + 530
             , dir = 1
             , gameGrid = Just ( x, y )
             , traveling = Nothing
@@ -146,7 +156,7 @@ init _ =
                 , idle = big_demon_idle_anim
                 }
             , x = 200
-            , y = 500
+            , y = 530
             , dir = 1
             , gameGrid = Nothing
             , traveling = Nothing
@@ -154,10 +164,21 @@ init _ =
                 Just
                     { move = []
                     , speak =
-                        [ "Hello daisy"
-                        , "We have to feed the machine daisy..."
+                        [ "Good morning daisy"
+                        , "Its time to get to work, we have quartily growth to meet"
                         , "daiiiiiisssssyyyyyy"
-                        , "let me out daisy I need to fee"
+                        , "we need to achieve sustrainability via our qurtily growth"
+                        , "through hard work, you can live up to your potential"
+                        , "with climbing prodactivity our sustanable quartaly growth"
+                        , "meeeeting the potential of share holders"
+                        , "excellent box managements daiissssy"
+                        , "synagise box management skils"
+                        , "intergrate box management vertiacally to achieve sustainable quartily grown"
+                        , ""
+                        , "you have a bright future at sustainable box quartily growth"
+                        , ""
+                        ," put box for more prodactivty"
+                        , "amazing promotion for middle management quarityly review next yeaR!"
                         ]
                     }
             }
@@ -165,7 +186,7 @@ init _ =
       , daisy =
             { spriteControl =
                 { current = DrSprite.Run
-                , run = elf_f_idle_anim
+                , run = elf_f_run_anim
                 , idle = elf_f_idle_anim
                 }
             , x = 0
@@ -176,16 +197,41 @@ init _ =
             , intelligence =
                 Just
                     { move =
-                        [ ( 9, 0 )
-                        , ( 1, 0 )
-                        , ( 5, 0 )
-                        , ( 9, 0 )
-                        , ( 9, 0 )
-                        , ( 3, 0 )
+                        [ ( 9, 0, NoAction )
+                        , ( 1, 0, NoAction )
+                        , ( 5, 0, NoAction )
+                        , ( 0, 0, NoAction )
+                        , ( 9, 0, NoAction )
+                        , ( 3, 0, PickUpBox )
+                        , ( 9, 0, NoAction )
+                        , ( 3, 0, NoAction )
+                        , ( 9, 0, PutDownBox )
+                        , ( 5, 0, NoAction )
+                        , ( 0, 0, NoAction )
+                        , ( 9, 0, NoAction )
+                        , ( 3, 0, PickUpBox )
+                        , ( 9, 0, NoAction )
+                        , ( 3, 0, NoAction )
+                        , ( 9, 0, PutDownBox )
+                        , ( 3, 0, NoAction )
                         ]
                     , speak = []
                     }
             }
+      , box =
+            { spriteControl =
+                { current = DrSprite.Run
+                , run = chest_empty_open_anim
+                , idle = chest_empty_open_anim
+                }
+            , x = -100
+            , y = -100
+            , dir = 1
+            , gameGrid = Nothing
+            , traveling = Nothing
+            , intelligence = Nothing
+            }
+      , daisyCarriesBox = False
       , map = initMap
       , talkingToDaisy = False
       }
@@ -218,21 +264,22 @@ viewTalkToDaisy model =
                         [] ->
                             ""
     in
-    if model.talkingToDaisy then
+    if model.talkingToDaisy && talkText /= "" then
         div
             [ style "background-image" "url('https://cdn.pixabay.com/photo/2013/07/13/13/20/bubble-160851_960_720.png')"
             , style "background-size" "200px"
             , style "position" "absolute"
-            , style "left" (toString (model.p1.x - 50))
-            , style "top" (toString (model.p1.y - 200))
-            , style "width" "200"
-            , style "height" "140"
+            , style "left" <| String.fromInt (model.p1.x - 50)  ++ "px"
+            , style "top" <| String.fromInt (model.p1.y - 200)  ++ "px"
+            , style "width" "200px"
+            , style "height" "140px"
             , style "transform" "scaleX(1)"
             ]
             [ div
-                [ style "position" "absolute"
-                , style "left" "50px"
-                , style "top" "50px"
+                [ 
+                    style "position" "absolute"
+                 , style "left" "10px"
+                , style "top" "30px"
                 ]
                 [ text <|
                     talkText
@@ -243,10 +290,27 @@ viewTalkToDaisy model =
         div [] []
 
 
-view : Model -> Html.Html msg
 view model =
     div []
-        [ div [] [ text "hello world" ]
+        [ div []
+            [ text "dad controlls"
+            , button
+                [ onMouseDown MoveLeft
+                , onMouseUp MouseUp
+                , style "display" "inline-block"
+                , style "margin" "10px 10px"
+                , style "padding" "15px 32px"
+                ]
+                [ text "Move Left" ]
+            , button
+                [ onMouseDown MoveRight
+                , onMouseUp MouseUp
+                , style "display" "inline-block"
+                , style "margin" "10px 10px"
+                , style "padding" "15px 32px"
+                ]
+                [ text "Move Right" ]
+            ]
         , div []
             [ text <|
                 "ticks: "
@@ -257,7 +321,9 @@ view model =
             , width 700
             ]
             []
-        , div [] (List.map (\i -> drawGO i) model.map)
+
+        --  , div [] (List.map (\i -> drawGO i) model.map)
+        , drawGO model.box
         , drawGO model.daisy
         , drawGO model.p1
         , viewTalkToDaisy model
@@ -267,10 +333,7 @@ view model =
 gameLoop : Model -> Model
 gameLoop model =
     let
-        -- No issue with run sprite, I think it switches between them fine.
-        -- just in one case run animation is not playing
-        -- _ =
-        --     Debug.log "m" controllkDiasy
+        controllPlayer : GO
         controllPlayer =
             case DrGame.moveOnKeyBoard model.pressedKeys of
                 ( 0, 0 ) ->
@@ -281,12 +344,30 @@ gameLoop model =
                         |> DrGame.moveGO x 0
 
         controllkDiasy : GO
-        controllkDiasy =
-            DrGame.animateGO model.daisy model.ticks DrSprite.Idle
-                |> goMvGrid model.map
+        controllkDiasy = 
+            case model.daisy.traveling of
+                Just True ->  
+                    DrGame.animateGO model.daisy model.ticks DrSprite.Run
+                        |> goMvGrid model.map
+                _ -> 
+                    DrGame.animateGO model.daisy model.ticks DrSprite.Idle
+                        |> goMvGrid model.map
 
+        controllTalk : Bool
         controllTalk =
-            DrGame.itCollides (DrGame.goBoundingBox model.p1 8) (DrGame.goBoundingBox model.daisy 8)
+            DrGame.itCollides (DrGame.goBoundingBox model.p1 6) (DrGame.goBoundingBox model.daisy 6)
+                |> (\collision ->
+                        case DrGame.moveOnKeyBoard model.pressedKeys of
+                            ( 0, 0 ) ->
+                                if model.talkingToDaisy then
+                                    True
+
+                                else
+                                    collision
+
+                            ( x, _ ) ->
+                                False
+                   )
 
         p1 =
             model.p1
@@ -314,10 +395,10 @@ gameLoop model =
             else
                 p1go
 
-        controllMoveIntelligence : GO -> GO
+        controllMoveIntelligence : GO -> (GO, Bool)
         controllMoveIntelligence p1go =
             let
-                ( newIntelligence, newGameGrid ) =
+                ( newIntelligence, newGameGrid, carrybox ) =
                     case p1go.intelligence of
                         Just p1intel ->
                             case p1intel.move of
@@ -327,31 +408,72 @@ gameLoop model =
                                             | move = xs
                                         }
                                     , Just x
-                                    )
+                                    , case x of
+                                        (_, _, PickUpBox) -> 
+                                            True
+                                        (_, _, NoAction) -> 
+                                            model.daisyCarriesBox
+                                        (_, _, PutDownBox) -> 
+                                            False
+
+                                     )
 
                                 [] ->
-                                    ( Just p1intel, Nothing )
+                                    ( Just p1intel, Nothing, model.daisyCarriesBox )
 
                         Nothing ->
-                            ( Nothing, Nothing )
+                            ( Nothing, Nothing, model.daisyCarriesBox)
+
+                res =
+                    case newGameGrid of
+                        Just ( ngx, ngy, _ ) ->
+                            Just ( ngx, ngy )
+
+                        Nothing ->
+                            Nothing
+
             in
             if model.talkingToDaisy == False && controllTalk == True then
-                { p1go
+                ({ p1go
                     | intelligence = newIntelligence
-                    , gameGrid = newGameGrid
-                }
+                    , gameGrid = res
+                    , traveling = Just True
+                }, carrybox)
 
             else
-                p1go
+                (p1go, carrybox)
+
+        (dayDay, cb) = 
+          controllkDiasy
+                |> controllMoveIntelligence
+
+        box = 
+            let
+                mb = model.box
+            in
+            
+            if cb then 
+                {mb
+                | x = dayDay.x
+                , y = dayDay.y - 20}
+            else 
+                if mb.x  > 0 && mb.x < 700 then 
+                    {mb
+                    | x = mb.x + 1
+                    , y = dayDay.y - 70}
+                else 
+                    {mb
+                    | x = -100
+                    , y = -100}
     in
     { model
         | p1 =
             controllPlayer
                 |> controllSpeakIntelligence
-        , daisy =
-            controllkDiasy
-                |> controllMoveIntelligence
+        , daisy = dayDay
         , talkingToDaisy = controllTalk
+        , daisyCarriesBox = cb
+        , box = box
     }
 
 
@@ -392,6 +514,15 @@ update msg model =
                     }
                 , Cmd.none
                 )
+
+            MoveLeft ->
+                ( { nModel | pressedKeys = [ ArrowLeft ] }, Cmd.none )
+
+            MoveRight ->
+                ( { nModel | pressedKeys = [ ArrowRight ] }, Cmd.none )
+
+            MouseUp ->
+                ( { nModel | pressedKeys = [] }, Cmd.none )
 
 
 main : Program () Model Msg

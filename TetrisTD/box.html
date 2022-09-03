@@ -5173,6 +5173,9 @@ var $elm$core$Task$perform = F2(
 				A2($elm$core$Task$map, toMessage, task)));
 	});
 var $elm$browser$Browser$element = _Browser_element;
+var $author$project$DrGame$NoAction = {$: 'NoAction'};
+var $author$project$DrGame$PickUpBox = {$: 'PickUpBox'};
+var $author$project$DrGame$PutDownBox = {$: 'PutDownBox'};
 var $author$project$DrSprite$Run = {$: 'Run'};
 var $author$project$DrSprite$getSprite = F5(
 	function (x, y, w, h, f) {
@@ -5180,7 +5183,9 @@ var $author$project$DrSprite$getSprite = F5(
 	});
 var $author$project$Pokemon$big_demon_idle_anim = A5($author$project$DrSprite$getSprite, 16, 360, 32, 60, 3);
 var $author$project$Pokemon$big_demon_run_anim = A5($author$project$DrSprite$getSprite, 80, 364, 32, 36, 5);
-var $author$project$Pokemon$elf_f_idle_anim = A5($author$project$DrSprite$getSprite, 128, 4, 16, 28, 4);
+var $author$project$Pokemon$chest_empty_open_anim = A5($author$project$DrSprite$getSprite, 304, 288, 16, 16, 3);
+var $author$project$Pokemon$elf_f_idle_anim = A5($author$project$DrSprite$getSprite, 128, 4, 16, 28, 1);
+var $author$project$Pokemon$elf_f_run_anim = A5($author$project$DrSprite$getSprite, 128, 4, 16, 28, 4);
 var $author$project$DrSprite$Idle = {$: 'Idle'};
 var $elm$core$Basics$ge = _Utils_ge;
 var $author$project$DrGrid$fold2d = F3(
@@ -5238,16 +5243,28 @@ var $author$project$Pokemon$initMap = A3(
 					spriteControl: {current: $author$project$DrSprite$Idle, idle: $author$project$Pokemon$invis, run: $author$project$Pokemon$invis},
 					traveling: $elm$core$Maybe$Nothing,
 					x: (x * 16) * $author$project$DrGame$scale,
-					y: ((y * 16) * $author$project$DrGame$scale) + 500
+					y: ((y * 16) * $author$project$DrGame$scale) + 530
 				},
 				result);
 		}),
 	_List_Nil);
+var $elm$core$Basics$negate = function (n) {
+	return -n;
+};
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $author$project$Pokemon$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
+			box: {
+				dir: 1,
+				gameGrid: $elm$core$Maybe$Nothing,
+				intelligence: $elm$core$Maybe$Nothing,
+				spriteControl: {current: $author$project$DrSprite$Run, idle: $author$project$Pokemon$chest_empty_open_anim, run: $author$project$Pokemon$chest_empty_open_anim},
+				traveling: $elm$core$Maybe$Nothing,
+				x: -100,
+				y: -100
+			},
 			daisy: {
 				dir: 1,
 				gameGrid: $elm$core$Maybe$Just(
@@ -5256,20 +5273,32 @@ var $author$project$Pokemon$init = function (_v0) {
 					{
 						move: _List_fromArray(
 							[
-								_Utils_Tuple2(9, 0),
-								_Utils_Tuple2(1, 0),
-								_Utils_Tuple2(5, 0),
-								_Utils_Tuple2(9, 0),
-								_Utils_Tuple2(9, 0),
-								_Utils_Tuple2(3, 0)
+								_Utils_Tuple3(9, 0, $author$project$DrGame$NoAction),
+								_Utils_Tuple3(1, 0, $author$project$DrGame$NoAction),
+								_Utils_Tuple3(5, 0, $author$project$DrGame$NoAction),
+								_Utils_Tuple3(0, 0, $author$project$DrGame$NoAction),
+								_Utils_Tuple3(9, 0, $author$project$DrGame$NoAction),
+								_Utils_Tuple3(3, 0, $author$project$DrGame$PickUpBox),
+								_Utils_Tuple3(9, 0, $author$project$DrGame$NoAction),
+								_Utils_Tuple3(3, 0, $author$project$DrGame$NoAction),
+								_Utils_Tuple3(9, 0, $author$project$DrGame$PutDownBox),
+								_Utils_Tuple3(5, 0, $author$project$DrGame$NoAction),
+								_Utils_Tuple3(0, 0, $author$project$DrGame$NoAction),
+								_Utils_Tuple3(9, 0, $author$project$DrGame$NoAction),
+								_Utils_Tuple3(3, 0, $author$project$DrGame$PickUpBox),
+								_Utils_Tuple3(9, 0, $author$project$DrGame$NoAction),
+								_Utils_Tuple3(3, 0, $author$project$DrGame$NoAction),
+								_Utils_Tuple3(9, 0, $author$project$DrGame$PutDownBox),
+								_Utils_Tuple3(3, 0, $author$project$DrGame$NoAction)
 							]),
 						speak: _List_Nil
 					}),
-				spriteControl: {current: $author$project$DrSprite$Run, idle: $author$project$Pokemon$elf_f_idle_anim, run: $author$project$Pokemon$elf_f_idle_anim},
+				spriteControl: {current: $author$project$DrSprite$Run, idle: $author$project$Pokemon$elf_f_idle_anim, run: $author$project$Pokemon$elf_f_run_anim},
 				traveling: $elm$core$Maybe$Just(true),
 				x: 0,
 				y: 500
 			},
+			daisyCarriesBox: false,
 			map: $author$project$Pokemon$initMap,
 			p1: {
 				dir: 1,
@@ -5278,12 +5307,12 @@ var $author$project$Pokemon$init = function (_v0) {
 					{
 						move: _List_Nil,
 						speak: _List_fromArray(
-							['Hello daisy', 'We have to feed the machine daisy...', 'daiiiiiisssssyyyyyy', 'let me out daisy I need to fee'])
+							['Good morning daisy', 'Its time to get to work, we have quartily growth to meet', 'daiiiiiisssssyyyyyy', 'we need to achieve sustrainability via our qurtily growth', 'through hard work, you can live up to your potential', 'with climbing prodactivity our sustanable quartaly growth', 'meeeeting the potential of share holders', 'excellent box managements daiissssy', 'synagise box management skils', 'intergrate box management vertiacally to achieve sustainable quartily grown', '', 'you have a bright future at sustainable box quartily growth', '', ' put box for more prodactivty', 'amazing promotion for middle management quarityly review next yeaR!'])
 					}),
 				spriteControl: {current: $author$project$DrSprite$Run, idle: $author$project$Pokemon$big_demon_idle_anim, run: $author$project$Pokemon$big_demon_run_anim},
 				traveling: $elm$core$Maybe$Nothing,
 				x: 200,
-				y: 500
+				y: 530
 			},
 			pressedKeys: _List_Nil,
 			quit: false,
@@ -5881,6 +5910,8 @@ var $author$project$Pokemon$subscriptions = function (_v0) {
 				A2($elm$core$Platform$Sub$map, $author$project$Pokemon$KeyMsg, $ohanhi$keyboard$Keyboard$subscriptions)
 			]));
 };
+var $ohanhi$keyboard$Keyboard$ArrowLeft = {$: 'ArrowLeft'};
+var $ohanhi$keyboard$Keyboard$ArrowRight = {$: 'ArrowRight'};
 var $ohanhi$keyboard$Keyboard$Spacebar = {$: 'Spacebar'};
 var $elm$core$List$any = F2(
 	function (isOkay, list) {
@@ -5972,13 +6003,14 @@ var $author$project$DrGrid$goMvGrid = F2(
 				return go;
 			} else {
 				var dir = maybeDir.a;
-				return (_Utils_eq(go.x, dir.x) && _Utils_eq(go.x, dir.y)) ? _Utils_update(
+				return (_Utils_eq(go.x, dir.x) && _Utils_eq(go.y, dir.y)) ? _Utils_update(
 					go,
 					{traveling: $elm$core$Maybe$Nothing}) : _Utils_update(
 					go,
 					{
-						x: (_Utils_cmp(go.x, dir.x) < 0) ? (go.x + 1) : (go.x - 1),
-						y: (_Utils_cmp(go.y, dir.y) < 0) ? (go.y + 1) : (go.y - 1)
+						dir: (_Utils_cmp(go.x, dir.x) < 1) ? 1 : (-1),
+						x: (_Utils_cmp(go.x, dir.x) < 1) ? (go.x + 1) : (go.x - 1),
+						y: (_Utils_cmp(go.y, dir.y) < 1) ? (go.y + 1) : (go.y - 1)
 					});
 			}
 		};
@@ -6013,9 +6045,6 @@ var $author$project$DrGame$itCollides = F2(
 	function (b1, b2) {
 		return (_Utils_cmp(b1.x, b2.x + b2.w) < 0) && ((_Utils_cmp(b1.x + b1.w, b2.x) > 0) && ((_Utils_cmp(b1.y, b2.y + b2.h) < 0) && (_Utils_cmp(b1.h + b1.y, b2.y) > 0)));
 	});
-var $elm$core$Basics$negate = function (n) {
-	return -n;
-};
 var $author$project$DrGame$moveGO = F3(
 	function (keyx, keyy, gameObject) {
 		var handleSpriteControl = function (spriteControl) {
@@ -6045,8 +6074,6 @@ var $author$project$DrGame$moveGO = F3(
 			});
 	});
 var $ohanhi$keyboard$Keyboard$ArrowDown = {$: 'ArrowDown'};
-var $ohanhi$keyboard$Keyboard$ArrowLeft = {$: 'ArrowLeft'};
-var $ohanhi$keyboard$Keyboard$ArrowRight = {$: 'ArrowRight'};
 var $ohanhi$keyboard$Keyboard$ArrowUp = {$: 'ArrowUp'};
 var $ohanhi$keyboard$Keyboard$Arrows$boolToInt = function (bool) {
 	return bool ? 1 : 0;
@@ -6066,25 +6093,44 @@ var $author$project$DrGame$moveOnKeyBoard = function (pressedKeys) {
 };
 var $author$project$Pokemon$gameLoop = function (model) {
 	var p1 = model.p1;
-	var controllkDiasy = A2(
-		$author$project$DrGrid$goMvGrid,
-		model.map,
-		A3($author$project$DrGame$animateGO, model.daisy, model.ticks, $author$project$DrSprite$Idle));
-	var controllTalk = A2(
-		$author$project$DrGame$itCollides,
-		A2($author$project$DrGame$goBoundingBox, model.p1, 8),
-		A2($author$project$DrGame$goBoundingBox, model.daisy, 8));
+	var controllkDiasy = function () {
+		var _v14 = model.daisy.traveling;
+		if ((_v14.$ === 'Just') && _v14.a) {
+			return A2(
+				$author$project$DrGrid$goMvGrid,
+				model.map,
+				A3($author$project$DrGame$animateGO, model.daisy, model.ticks, $author$project$DrSprite$Run));
+		} else {
+			return A2(
+				$author$project$DrGrid$goMvGrid,
+				model.map,
+				A3($author$project$DrGame$animateGO, model.daisy, model.ticks, $author$project$DrSprite$Idle));
+		}
+	}();
+	var controllTalk = function (collision) {
+		var _v13 = $author$project$DrGame$moveOnKeyBoard(model.pressedKeys);
+		if ((!_v13.a) && (!_v13.b)) {
+			return model.talkingToDaisy ? true : collision;
+		} else {
+			var x = _v13.a;
+			return false;
+		}
+	}(
+		A2(
+			$author$project$DrGame$itCollides,
+			A2($author$project$DrGame$goBoundingBox, model.p1, 6),
+			A2($author$project$DrGame$goBoundingBox, model.daisy, 6)));
 	var controllSpeakIntelligence = function (p1go) {
 		return (model.talkingToDaisy && (!controllTalk)) ? _Utils_update(
 			p1go,
 			{
 				intelligence: function () {
-					var _v4 = p1go.intelligence;
-					if (_v4.$ === 'Just') {
-						var p1intel = _v4.a;
-						var _v5 = p1intel.speak;
-						if (_v5.b) {
-							var xs = _v5.b;
+					var _v11 = p1go.intelligence;
+					if (_v11.$ === 'Just') {
+						var p1intel = _v11.a;
+						var _v12 = p1intel.speak;
+						if (_v12.b) {
+							var xs = _v12.b;
 							return $elm$core$Maybe$Just(
 								_Utils_update(
 									p1intel,
@@ -6099,11 +6145,11 @@ var $author$project$Pokemon$gameLoop = function (model) {
 			}) : p1go;
 	};
 	var controllPlayer = function () {
-		var _v3 = $author$project$DrGame$moveOnKeyBoard(model.pressedKeys);
-		if ((!_v3.a) && (!_v3.b)) {
+		var _v10 = $author$project$DrGame$moveOnKeyBoard(model.pressedKeys);
+		if ((!_v10.a) && (!_v10.b)) {
 			return A3($author$project$DrGame$animateGO, model.p1, model.ticks, $author$project$DrSprite$Idle);
 		} else {
-			var x = _v3.a;
+			var x = _v10.a;
 			return A3(
 				$author$project$DrGame$moveGO,
 				x,
@@ -6112,39 +6158,86 @@ var $author$project$Pokemon$gameLoop = function (model) {
 		}
 	}();
 	var controllMoveIntelligence = function (p1go) {
-		var _v0 = function () {
-			var _v1 = p1go.intelligence;
-			if (_v1.$ === 'Just') {
-				var p1intel = _v1.a;
-				var _v2 = p1intel.move;
-				if (_v2.b) {
-					var x = _v2.a;
-					var xs = _v2.b;
-					return _Utils_Tuple2(
+		var _v1 = function () {
+			var _v2 = p1go.intelligence;
+			if (_v2.$ === 'Just') {
+				var p1intel = _v2.a;
+				var _v3 = p1intel.move;
+				if (_v3.b) {
+					var x = _v3.a;
+					var xs = _v3.b;
+					return _Utils_Tuple3(
 						$elm$core$Maybe$Just(
 							_Utils_update(
 								p1intel,
 								{move: xs})),
-						$elm$core$Maybe$Just(x));
+						$elm$core$Maybe$Just(x),
+						function () {
+							switch (x.c.$) {
+								case 'PickUpBox':
+									var _v5 = x.c;
+									return true;
+								case 'NoAction':
+									var _v6 = x.c;
+									return model.daisyCarriesBox;
+								default:
+									var _v7 = x.c;
+									return false;
+							}
+						}());
 				} else {
-					return _Utils_Tuple2(
+					return _Utils_Tuple3(
 						$elm$core$Maybe$Just(p1intel),
-						$elm$core$Maybe$Nothing);
+						$elm$core$Maybe$Nothing,
+						model.daisyCarriesBox);
 				}
 			} else {
-				return _Utils_Tuple2($elm$core$Maybe$Nothing, $elm$core$Maybe$Nothing);
+				return _Utils_Tuple3($elm$core$Maybe$Nothing, $elm$core$Maybe$Nothing, model.daisyCarriesBox);
 			}
 		}();
-		var newIntelligence = _v0.a;
-		var newGameGrid = _v0.b;
-		return ((!model.talkingToDaisy) && controllTalk) ? _Utils_update(
-			p1go,
-			{gameGrid: newGameGrid, intelligence: newIntelligence}) : p1go;
+		var newIntelligence = _v1.a;
+		var newGameGrid = _v1.b;
+		var carrybox = _v1.c;
+		var res = function () {
+			if (newGameGrid.$ === 'Just') {
+				var _v9 = newGameGrid.a;
+				var ngx = _v9.a;
+				var ngy = _v9.b;
+				return $elm$core$Maybe$Just(
+					_Utils_Tuple2(ngx, ngy));
+			} else {
+				return $elm$core$Maybe$Nothing;
+			}
+		}();
+		return ((!model.talkingToDaisy) && controllTalk) ? _Utils_Tuple2(
+			_Utils_update(
+				p1go,
+				{
+					gameGrid: res,
+					intelligence: newIntelligence,
+					traveling: $elm$core$Maybe$Just(true)
+				}),
+			carrybox) : _Utils_Tuple2(p1go, carrybox);
 	};
+	var _v0 = controllMoveIntelligence(controllkDiasy);
+	var dayDay = _v0.a;
+	var cb = _v0.b;
+	var box = function () {
+		var mb = model.box;
+		return cb ? _Utils_update(
+			mb,
+			{x: dayDay.x, y: dayDay.y - 20}) : (((mb.x > 0) && (mb.x < 700)) ? _Utils_update(
+			mb,
+			{x: mb.x + 1, y: dayDay.y - 70}) : _Utils_update(
+			mb,
+			{x: -100, y: -100}));
+	}();
 	return _Utils_update(
 		model,
 		{
-			daisy: controllMoveIntelligence(controllkDiasy),
+			box: box,
+			daisy: dayDay,
+			daisyCarriesBox: cb,
 			p1: controllSpeakIntelligence(controllPlayer),
 			talkingToDaisy: controllTalk
 		});
@@ -6609,16 +6702,44 @@ var $author$project$Pokemon$update = F2(
 								pressedKeys: A2($ohanhi$keyboard$Keyboard$update, keyMsg, nModel.pressedKeys)
 							}),
 						$elm$core$Platform$Cmd$none);
-				default:
+				case 'LockedTick':
 					return _Utils_Tuple2(
 						$author$project$Pokemon$gameLoop(
 							_Utils_update(
 								nModel,
 								{ticks: nModel.ticks + 1})),
 						$elm$core$Platform$Cmd$none);
+				case 'MoveLeft':
+					return _Utils_Tuple2(
+						_Utils_update(
+							nModel,
+							{
+								pressedKeys: _List_fromArray(
+									[$ohanhi$keyboard$Keyboard$ArrowLeft])
+							}),
+						$elm$core$Platform$Cmd$none);
+				case 'MoveRight':
+					return _Utils_Tuple2(
+						_Utils_update(
+							nModel,
+							{
+								pressedKeys: _List_fromArray(
+									[$ohanhi$keyboard$Keyboard$ArrowRight])
+							}),
+						$elm$core$Platform$Cmd$none);
+				default:
+					return _Utils_Tuple2(
+						_Utils_update(
+							nModel,
+							{pressedKeys: _List_Nil}),
+						$elm$core$Platform$Cmd$none);
 			}
 		}
 	});
+var $author$project$Pokemon$MouseUp = {$: 'MouseUp'};
+var $author$project$Pokemon$MoveLeft = {$: 'MoveLeft'};
+var $author$project$Pokemon$MoveRight = {$: 'MoveRight'};
+var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$html$Html$div = _VirtualDom_node('div');
 var $author$project$Pokemon$scale = 3;
 var $elm$core$String$fromFloat = _String_fromNumber;
@@ -6702,6 +6823,29 @@ var $author$project$Pokemon$drawGO = function (go) {
 	}
 };
 var $elm$html$Html$img = _VirtualDom_node('img');
+var $elm$virtual_dom$VirtualDom$Normal = function (a) {
+	return {$: 'Normal', a: a};
+};
+var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
+var $elm$html$Html$Events$on = F2(
+	function (event, decoder) {
+		return A2(
+			$elm$virtual_dom$VirtualDom$on,
+			event,
+			$elm$virtual_dom$VirtualDom$Normal(decoder));
+	});
+var $elm$html$Html$Events$onMouseDown = function (msg) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'mousedown',
+		$elm$json$Json$Decode$succeed(msg));
+};
+var $elm$html$Html$Events$onMouseUp = function (msg) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'mouseup',
+		$elm$json$Json$Decode$succeed(msg));
+};
 var $elm$json$Json$Encode$string = _Json_wrap;
 var $elm$html$Html$Attributes$stringProperty = F2(
 	function (key, string) {
@@ -6718,7 +6862,6 @@ var $elm$html$Html$Attributes$src = function (url) {
 };
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
-var $elm$core$Debug$toString = _Debug_toString;
 var $author$project$Pokemon$viewTalkToDaisy = function (model) {
 	var talkText = function () {
 		var _v0 = model.p1.intelligence;
@@ -6736,7 +6879,7 @@ var $author$project$Pokemon$viewTalkToDaisy = function (model) {
 			}
 		}
 	}();
-	return model.talkingToDaisy ? A2(
+	return (model.talkingToDaisy && (talkText !== '')) ? A2(
 		$elm$html$Html$div,
 		_List_fromArray(
 			[
@@ -6746,13 +6889,13 @@ var $author$project$Pokemon$viewTalkToDaisy = function (model) {
 				A2(
 				$elm$html$Html$Attributes$style,
 				'left',
-				$elm$core$Debug$toString(model.p1.x - 50)),
+				$elm$core$String$fromInt(model.p1.x - 50) + 'px'),
 				A2(
 				$elm$html$Html$Attributes$style,
 				'top',
-				$elm$core$Debug$toString(model.p1.y - 200)),
-				A2($elm$html$Html$Attributes$style, 'width', '200'),
-				A2($elm$html$Html$Attributes$style, 'height', '140'),
+				$elm$core$String$fromInt(model.p1.y - 200) + 'px'),
+				A2($elm$html$Html$Attributes$style, 'width', '200px'),
+				A2($elm$html$Html$Attributes$style, 'height', '140px'),
 				A2($elm$html$Html$Attributes$style, 'transform', 'scaleX(1)')
 			]),
 		_List_fromArray(
@@ -6762,8 +6905,8 @@ var $author$project$Pokemon$viewTalkToDaisy = function (model) {
 				_List_fromArray(
 					[
 						A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
-						A2($elm$html$Html$Attributes$style, 'left', '50px'),
-						A2($elm$html$Html$Attributes$style, 'top', '50px')
+						A2($elm$html$Html$Attributes$style, 'left', '10px'),
+						A2($elm$html$Html$Attributes$style, 'top', '30px')
 					]),
 				_List_fromArray(
 					[
@@ -6788,7 +6931,35 @@ var $author$project$Pokemon$view = function (model) {
 				_List_Nil,
 				_List_fromArray(
 					[
-						$elm$html$Html$text('hello world')
+						$elm$html$Html$text('dad controlls'),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onMouseDown($author$project$Pokemon$MoveLeft),
+								$elm$html$Html$Events$onMouseUp($author$project$Pokemon$MouseUp),
+								A2($elm$html$Html$Attributes$style, 'display', 'inline-block'),
+								A2($elm$html$Html$Attributes$style, 'margin', '10px 10px'),
+								A2($elm$html$Html$Attributes$style, 'padding', '15px 32px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Move Left')
+							])),
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onMouseDown($author$project$Pokemon$MoveRight),
+								$elm$html$Html$Events$onMouseUp($author$project$Pokemon$MouseUp),
+								A2($elm$html$Html$Attributes$style, 'display', 'inline-block'),
+								A2($elm$html$Html$Attributes$style, 'margin', '10px 10px'),
+								A2($elm$html$Html$Attributes$style, 'padding', '15px 32px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Move Right')
+							]))
 					])),
 				A2(
 				$elm$html$Html$div,
@@ -6806,15 +6977,7 @@ var $author$project$Pokemon$view = function (model) {
 						$elm$html$Html$Attributes$width(700)
 					]),
 				_List_Nil),
-				A2(
-				$elm$html$Html$div,
-				_List_Nil,
-				A2(
-					$elm$core$List$map,
-					function (i) {
-						return $author$project$Pokemon$drawGO(i);
-					},
-					model.map)),
+				$author$project$Pokemon$drawGO(model.box),
 				$author$project$Pokemon$drawGO(model.daisy),
 				$author$project$Pokemon$drawGO(model.p1),
 				$author$project$Pokemon$viewTalkToDaisy(model)

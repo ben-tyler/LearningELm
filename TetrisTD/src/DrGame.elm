@@ -23,8 +23,9 @@ type alias GameObject =
     }
 
 
+type Action = PickUpBox | NoAction | PutDownBox
 type alias Intelligence =
-    { move : List ( Int, Int )
+    { move : List ( Int, Int, Action )
     , speak: List String
     }
 
@@ -36,7 +37,7 @@ type alias GO =
     , dir : Int
     , gameGrid : Maybe ( Int, Int )
     , traveling : Maybe Bool
-    , intelligence : Maybe Intelligence
+    , intelligence : Maybe Intelligence -- it is probably a bad idea to couple intelligence here
     }
 
 
